@@ -1,0 +1,5 @@
+provider = "gemini"
+
+[provider_opts.gemini]
+
+url = "https://generativelanguage.googleapis.com"

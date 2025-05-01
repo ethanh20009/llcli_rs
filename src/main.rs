@@ -1,6 +1,8 @@
+mod cli_handler;
 mod configuration;
 mod provider;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     println!("Hello, world!");
 }

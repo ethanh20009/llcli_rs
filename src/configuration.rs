@@ -1,22 +1,22 @@
 use config;
 use serde::{Deserialize, Serialize};
 
+const DEFAULT_CONFIG: &str = include_str!("default_config.toml");
+
 #[derive(Serialize, Deserialize)]
 pub struct Configuration {
-    provider: String,
-    provider_opts: ProviderOpts,
+    pub provider: String,
+    pub provider_opts: ProviderOpts,
 }
 
 #[derive(Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum ProviderOpts {
-    Gemini(GeminiProviderOpts),
+pub struct ProviderOpts {
+    pub gemini: GeminiProviderOpts,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct OnlineProviderOpts {
-    url: String,
-    api_key: Option<String>,
+    pub url: String,
 }
 
 pub struct ConfigManager {
@@ -49,5 +49,5 @@ impl ConfigManager {
 #[derive(Serialize, Deserialize)]
 pub struct GeminiProviderOpts {
     #[serde(flatten)]
-    online_opts: OnlineProviderOpts,
+    pub online_opts: OnlineProviderOpts,
 }

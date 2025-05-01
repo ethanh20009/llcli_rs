@@ -4,8 +4,20 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+tokio = { version = "1.44.2", features = ["macros", "rt-multi-thread"] }
 config = { version = "0.15.11" }
 reqwest = { version = "0.12.15" }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = { version = "1.0.140" }
 dirs = { version = "6.0.0" }
+keyring = { version = "3.6.2", features = [
+  "linux-native-async-persistent",
+  "async-secret-service",
+  "tokio",
+  "crypto-rust",
+] }
+whoami = { version = "1.6.0" }
+thiserror = { version = "2.0.12" }
+clap = { version = "4.5.37", features = ["color", "derive"] }
+inquire = { version = "0.7.5", features = ["macros"] }
+derive_more = { version = "2.0.1", features = ["from"] }

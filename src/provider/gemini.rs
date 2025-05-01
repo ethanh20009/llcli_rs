@@ -1,4 +1,6 @@
-use super::{OnlineProvider, ProviderImpl};
+use crate::{cli_handler::CliHandler, configuration::GeminiProviderOpts};
+
+use super::{APIKeyManager, GEMINI_PROVIDER, OnlineProvider, ProviderImpl};
 
 pub struct GeminiProvider {
     provider: OnlineProvider,
@@ -8,12 +10,24 @@ pub struct GeminiProvider {
 impl ProviderImpl for GeminiProvider {
     fn complete_chat(&self, prompt: String) -> String {}
 
-    fn new(config: &crate::configuration::Configuration) -> Self {
+    fn provider_str() -> &'static str {
+        GEMINI_PROVIDER
+    }
+}
+
+impl GeminiProvider {
+    pub fn new(
+        config: &GeminiProviderOpts,
+        api_key_manager: &APIKeyManager,
+        cli_handler: Option<&CliHandler>,
+    ) -> Self {
         Self {
-            provider: OnlineProvider {
-                api_key: (),
-                url: (),
-            },
+            provider: OnlineProvider::new(
+                GeminiProvider::provider_str(),
+                &config.online_opts,
+                api_key_manager,
+                cli_handler,
+            ),
             http_client: reqwest::Client::builder()
                 .build()
                 .expect("Failed to build http client."),
