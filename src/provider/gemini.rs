@@ -8,7 +8,9 @@ pub struct GeminiProvider {
 }
 
 impl ProviderImpl for GeminiProvider {
-    fn complete_chat(&self, prompt: String) -> String {}
+    fn complete_chat(&self, prompt: String) -> String {
+        self.http_client.post(self.provider.url)
+    }
 
     fn provider_str() -> &'static str {
         GEMINI_PROVIDER
@@ -33,4 +35,6 @@ impl GeminiProvider {
                 .expect("Failed to build http client."),
         }
     }
+
+    fn get_chat_url(&self) -> String {}
 }
