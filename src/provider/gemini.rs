@@ -21,21 +21,18 @@ impl ProviderImpl for GeminiProvider {
 
 impl OnlineProviderImpl for GeminiProvider {
     type ProviderApiResponse = GeminiApiResponse;
-    fn build_chat_url(&self) -> Url {
-        reqwest::Url::parse(&self.provider.url)
-            .expect(format!("Failed to parse provider url: {:?}", self.provider.url).as_str())
+    fn build_chat_url(&self) -> anyhow::Result<Url> {
+        let mut url = reqwest::Url::parse(&self.provider.url)
+            .context("Failed to parse provider url")?
             .join("v1beta/models/")
-            .expect("Failed to build gemini url.")
+            .context("Failed to build gemini url.")?
             .join(&self.provider.model)
-            .expect(
-                format!(
-                    "Failed to build gemini model url: {:?}.",
-                    self.provider.model
-                )
-                .as_str(),
-            )
-            .join(":generateContent")
-            .expect("Failed to append url command.")
+            .context("Failed to build gemini model url")?;
+
+        url = Url::parse(&(url.to_string() + ":generateContent"))
+            .context("Failed to append chat generation type")?;
+        url.set_query(Some(format!("key={}", &self.provider.api_key).as_str()));
+        Ok(url)
     }
 
     fn build_chat_body(&self, prompt: impl Into<String>) -> serde_json::Value {

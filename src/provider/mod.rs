@@ -49,7 +49,7 @@ trait ProviderImpl {
 trait OnlineProviderImpl: ProviderImpl {
     type ProviderApiResponse: DeserializeOwned;
 
-    fn build_chat_url(&self) -> reqwest::Url;
+    fn build_chat_url(&self) -> anyhow::Result<reqwest::Url>;
     fn build_chat_body(&self, prompt: impl Into<String>) -> serde_json::Value;
     fn get_http_client(&self) -> &reqwest::Client;
     fn decode_llm_response(&self, response: Self::ProviderApiResponse) -> anyhow::Result<String>;
@@ -57,7 +57,7 @@ trait OnlineProviderImpl: ProviderImpl {
     async fn complete_chat(&self, prompt: String) -> anyhow::Result<String> {
         let response = self
             .get_http_client()
-            .post(self.build_chat_url())
+            .post(self.build_chat_url()?)
             .json(&self.build_chat_body(prompt))
             .send()
             .await
