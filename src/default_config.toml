@@ -2,4 +2,5 @@ provider = "gemini"
 
 [provider_opts.gemini]
 
-url = "https://generativelanguage.googleapis.com"
+url = "https://generativelanguage.googleapis.com/"
+model = "gemini-2.0-flash"

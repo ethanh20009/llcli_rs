@@ -17,6 +17,7 @@ pub struct ProviderOpts {
 #[derive(Serialize, Deserialize)]
 pub struct OnlineProviderOpts {
     pub url: String,
+    pub model: String,
 }
 
 pub struct ConfigManager {

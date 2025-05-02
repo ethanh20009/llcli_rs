@@ -1,7 +1,10 @@
 mod error;
 mod gemini;
 
+use anyhow::Context;
 use gemini::GeminiProvider;
+use reqwest::Url;
+use serde::de::DeserializeOwned;
 
 use crate::configuration::Configuration;
 use crate::{cli_handler::CliHandler, configuration::OnlineProviderOpts};
@@ -10,6 +13,7 @@ use error::{Error, Result};
 struct OnlineProvider {
     api_key: String,
     url: String,
+    model: String,
 }
 
 impl OnlineProvider {
@@ -30,15 +34,37 @@ impl OnlineProvider {
         };
         Self {
             url: config.url.clone(),
+            model: config.model.clone(),
             api_key,
         }
     }
 }
 
 trait ProviderImpl {
-    fn complete_chat(&self, prompt: String) -> String;
-
     fn provider_str() -> &'static str;
+}
+
+trait OnlineProviderImpl: ProviderImpl {
+    type ProviderApiResponse: DeserializeOwned;
+
+    fn build_chat_url(&self) -> reqwest::Url;
+    fn build_chat_body(&self, prompt: impl Into<String>) -> serde_json::Value;
+    fn get_http_client(&self) -> reqwest::Client;
+    fn decode_llm_response(&self, response: Self::ProviderApiResponse) -> anyhow::Result<String>;
+
+    async fn complete_chat(&self, prompt: String) -> anyhow::Result<String> {
+        let response = self
+            .get_http_client()
+            .post(self.build_chat_url())
+            .json(&self.build_chat_body(prompt))
+            .send()
+            .await
+            .context("Request failed to LLM Provider.")?
+            .json::<Self::ProviderApiResponse>()
+            .await
+            .context("Failed to decode LLM response into JSON")?;
+        self.decode_llm_response(response)
+    }
 }
 
 #[derive(derive_more::From)]
@@ -49,9 +75,9 @@ pub enum Provider {
 const GEMINI_PROVIDER: &'static str = "gemini";
 
 impl Provider {
-    pub fn complete_chat(&self, prompt: String) -> String {
+    pub async fn complete_chat(&self, prompt: String) -> anyhow::Result<String> {
         match self {
-            Self::Gemini(prov) => prov.complete_chat(prompt),
+            Self::Gemini(prov) => prov.complete_chat(prompt).await,
         }
     }
 
