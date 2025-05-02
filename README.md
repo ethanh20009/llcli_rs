@@ -5,6 +5,9 @@ Built with the power and safety of Rust,
 LLCLI_RS allows you to seamlessly integrate LLMs into your workflow,
 whether you're crafting creative content, automating tedious tasks, or exploring the boundless possibilities of AI.
 
+Currently, LLCLI_RS is very work-in-progress.
+Expect lots of breaking changes during development.
+
 **Key Features:**
 
 - **Rust-Powered Performance:** Experience the speed and reliability of Rust, ensuring efficient and stable LLM interactions.
@@ -24,3 +27,11 @@ Requirements:
 ### Linux
 
 Simply clone and run `./scripts/install.sh`
+
+## Supported Integrations (Work-In-Progress)
+
+- [x] Gemini
+- [ ] OpenAI
+- [ ] Claude
+- [ ] Ollama
+- [ ] Deepseek
