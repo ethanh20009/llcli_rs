@@ -10,14 +10,15 @@ impl Cli {
     ) -> anyhow::Result<()> {
         let llm_provider = Provider::new(&state.config, &state.api_key_manager, state.cli_handler);
 
-        let prompt = command
-            .message
-            .or_else(|| {
-                state
-                    .cli_handler
-                    .and_then(|handler| Some(handler.get_message()))
-            })
-            .context("No message supplied")?;
+        let prompt = match command.message {
+            Some(message) => Some(message),
+            None => match &state.cli_handler {
+                Some(handler) => Some(handler.get_message().context("Failed to get message.")?),
+                None => None,
+            },
+        }
+        .context("No message supplied")?;
+
         let response = llm_provider
             .complete_chat(prompt)
             .await

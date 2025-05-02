@@ -7,14 +7,14 @@ impl Cli {
         command: SetApiKeyCommand,
         state: &CommandState,
     ) -> anyhow::Result<()> {
-        let key = command
-            .key
-            .or_else(|| {
-                state
-                    .cli_handler
-                    .and_then(|handler| Some(handler.get_message()))
-            })
-            .context("No API key supplied")?;
+        let key = match command.key {
+            Some(key) => Some(key),
+            None => match state.cli_handler {
+                Some(handler) => Some(handler.get_api_key().context("Failed to get api key")?),
+                None => None,
+            },
+        }
+        .context("No API key supplied")?;
         state
             .api_key_manager
             .set_api_key(&state.config.provider, &key)

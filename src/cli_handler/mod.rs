@@ -1,8 +1,9 @@
-use anyhow::{Context, anyhow};
+use anyhow::Context;
 use clap::{Args, Parser, Subcommand};
 
 mod api_key;
 mod chat;
+mod error;
 
 use crate::{
     configuration::Configuration,
@@ -11,29 +12,29 @@ use crate::{
 
 pub struct CliHandler;
 impl CliHandler {
-    pub fn get_api_key(&self) -> String {
+    pub fn get_api_key(&self) -> error::Result<String> {
         inquire::Text::new("Enter API key:")
             .prompt()
-            .expect("Failed to retrieve API key from user")
+            .map_err(error::map_inquire_error)
     }
 
-    pub fn get_message(&self) -> String {
+    pub fn get_message(&self) -> error::Result<String> {
         inquire::Text::new("Enter message:")
             .prompt()
-            .expect("Failed to retrieve message from user")
+            .map_err(error::map_inquire_error)
     }
 
-    pub fn get_command(&self) -> Commands {
+    pub fn get_command(&self) -> error::Result<Commands> {
         const CHAT: &'static str = "Chat";
         const APIKEY: &'static str = "Set API Key";
         let options_str: Vec<&str> = vec![CHAT, APIKEY];
         let command = inquire::Select::new("Select option:", options_str)
             .prompt()
-            .expect("Failed to retrieve message from user");
+            .map_err(error::map_inquire_error)?;
         match command {
-            CHAT => Commands::Chat(ChatCommand { message: None }),
-            APIKEY => Commands::SetApiKey(SetApiKeyCommand { key: None }),
-            _ => panic!("Option not available"),
+            CHAT => Ok(Commands::Chat(ChatCommand { message: None })),
+            APIKEY => Ok(Commands::SetApiKey(SetApiKeyCommand { key: None })),
+            _ => Err(error::Error::CommandNotOption(command.to_string())),
         }
     }
 }
@@ -77,14 +78,14 @@ impl Cli {
         let cli_handler = if self.quiet { None } else { Some(CliHandler) };
         let state = CommandState::new(cli_handler.as_ref(), config, &api_key_manager, self.quiet);
 
-        let command = self
-            .command
-            .or_else(|| {
-                cli_handler
-                    .as_ref()
-                    .and_then(|handler| handler.get_command().into())
-            })
-            .context("No argument given. Use --help for options.")?;
+        let command = match self.command {
+            Some(command) => Some(command),
+            None => match &cli_handler {
+                Some(handler) => Some(handler.get_command().context("Failed to get command.")?),
+                None => None,
+            },
+        }
+        .context("No argument given. Use --help for options.")?;
 
         match command {
             Commands::Chat(command) => Cli::handle_chat(command, &state).await,

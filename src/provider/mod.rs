@@ -28,7 +28,9 @@ impl OnlineProvider {
         let api_key_result = api_key_manager.fetch_api_key(provider);
         let api_key = match (api_key_result, cli_handler) {
             (Ok(key), _) => key,
-            (Err(Error::NoApiKey), Some(cli_handler)) => cli_handler.get_api_key(),
+            (Err(Error::NoApiKey), Some(cli_handler)) => {
+                cli_handler.get_api_key().expect("Failed to get api key")
+            }
             (Err(Error::NoApiKey), None) => panic!("No api key found. Please add an api key."),
             (Err(Error::KeyFetchError(err)), _) => {
                 panic!("Error fetching key from keychain. {:?}", err)
