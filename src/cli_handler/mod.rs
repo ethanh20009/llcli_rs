@@ -81,9 +81,17 @@ impl Cli {
         }
         .context("No argument given. Use --help for options.")?;
 
-        match command {
+        let result = match command {
             Commands::Chat(command) => Cli::handle_chat(command, &state).await,
             Commands::SetApiKey(command) => Cli::handle_api_key(command, &state),
+        };
+
+        match result {
+            Ok(result) => Ok(result),
+            Err(err) => match err.root_cause().downcast_ref::<error::Error>() {
+                Some(error::Error::Interrupted) => Ok(()),
+                _ => Err(err),
+            },
         }
     }
 }

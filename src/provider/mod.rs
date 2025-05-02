@@ -5,7 +5,6 @@ mod gemini;
 use anyhow::Context;
 pub use api_key_manager::APIKeyManager;
 use gemini::GeminiProvider;
-use reqwest::Url;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 

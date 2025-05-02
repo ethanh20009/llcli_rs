@@ -6,7 +6,7 @@ mod cli_handler;
 mod configuration;
 mod provider;
 
-use provider::{APIKeyManager, Provider};
+use provider::APIKeyManager;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
