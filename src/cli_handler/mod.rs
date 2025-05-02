@@ -1,4 +1,4 @@
-use anyhow::anyhow;
+use anyhow::{Context, anyhow};
 use clap::{Args, Parser, Subcommand};
 
 mod api_key;
@@ -21,6 +21,20 @@ impl CliHandler {
         inquire::Text::new("Enter message:")
             .prompt()
             .expect("Failed to retrieve message from user")
+    }
+
+    pub fn get_command(&self) -> Commands {
+        const CHAT: &'static str = "Chat";
+        const APIKEY: &'static str = "Set API Key";
+        let options_str: Vec<&str> = vec![CHAT, APIKEY];
+        let command = inquire::Select::new("Select option:", options_str)
+            .prompt()
+            .expect("Failed to retrieve message from user");
+        match command {
+            CHAT => Commands::Chat(ChatCommand { message: None }),
+            APIKEY => Commands::SetApiKey(SetApiKeyCommand { key: None }),
+            _ => panic!("Option not available"),
+        }
     }
 }
 
@@ -62,13 +76,19 @@ impl Cli {
     ) -> anyhow::Result<()> {
         let cli_handler = if self.quiet { None } else { Some(CliHandler) };
         let state = CommandState::new(cli_handler.as_ref(), config, &api_key_manager, self.quiet);
-        if let Some(command) = self.command {
-            match command {
-                Commands::Chat(command) => Cli::handle_chat(command, &state).await,
-                Commands::SetApiKey(command) => Cli::handle_api_key(command, &state),
-            }
-        } else {
-            Err(anyhow!("No argument given. Use --help for options."))
+
+        let command = self
+            .command
+            .or_else(|| {
+                cli_handler
+                    .as_ref()
+                    .and_then(|handler| handler.get_command().into())
+            })
+            .context("No argument given. Use --help for options.")?;
+
+        match command {
+            Commands::Chat(command) => Cli::handle_chat(command, &state).await,
+            Commands::SetApiKey(command) => Cli::handle_api_key(command, &state),
         }
     }
 }
