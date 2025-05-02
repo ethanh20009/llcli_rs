@@ -87,16 +87,15 @@ impl Provider {
         config: &Configuration,
         api_key_manager: &APIKeyManager,
         cli_handler: Option<&CliHandler>,
-        provider: &str,
     ) -> Provider {
-        match provider {
+        match config.provider.as_str() {
             GEMINI_PROVIDER => {
                 GeminiProvider::new(&config.provider_opts.gemini, api_key_manager, cli_handler)
                     .into()
             }
             _ => panic!(
                 "invalid provider string reference. Recieved: {:?}",
-                provider
+                config.provider.as_str()
             ),
         }
     }

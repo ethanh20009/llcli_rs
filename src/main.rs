@@ -12,12 +12,9 @@ use provider::{APIKeyManager, Provider};
 async fn main() -> anyhow::Result<()> {
     let config = ConfigManager::new();
     let api_key_manager = APIKeyManager::new();
-    let cli_ui = cli_handler::CliHandler;
 
     let cli = Cli::parse();
-    let result = cli
-        .handle_command(&cli_ui, &config.config, &api_key_manager)
-        .await;
+    let result = cli.handle_command(&config.config, &api_key_manager).await;
 
     result
 }
