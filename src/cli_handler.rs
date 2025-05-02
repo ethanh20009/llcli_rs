@@ -12,7 +12,7 @@ impl CliHandler {
 /// LLM CLI Interface for your LLM needs.
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
-struct Cli {
+pub struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
 }

@@ -1,9 +1,10 @@
 use gemini_api_response::GeminiApiResponse;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 
 use crate::{cli_handler::CliHandler, configuration::GeminiProviderOpts};
-use anyhow::{Context, Result};
+use anyhow::Context;
 
 use super::{APIKeyManager, GEMINI_PROVIDER, OnlineProvider, OnlineProviderImpl, ProviderImpl};
 
@@ -38,11 +39,21 @@ impl OnlineProviderImpl for GeminiProvider {
     }
 
     fn build_chat_body(&self, prompt: impl Into<String>) -> serde_json::Value {
-        todo!()
+        json!({
+            "contents": [
+                {
+                    "parts": [
+                        {
+                            "text": prompt.into()
+                        }
+                    ]
+                }
+            ]
+        })
     }
 
-    fn get_http_client(&self) -> reqwest::Client {
-        todo!()
+    fn get_http_client(&self) -> &reqwest::Client {
+        &self.http_client
     }
 
     fn decode_llm_response(&self, response: GeminiApiResponse) -> anyhow::Result<String> {

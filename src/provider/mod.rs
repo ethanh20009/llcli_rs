@@ -49,7 +49,7 @@ trait OnlineProviderImpl: ProviderImpl {
 
     fn build_chat_url(&self) -> reqwest::Url;
     fn build_chat_body(&self, prompt: impl Into<String>) -> serde_json::Value;
-    fn get_http_client(&self) -> reqwest::Client;
+    fn get_http_client(&self) -> &reqwest::Client;
     fn decode_llm_response(&self, response: Self::ProviderApiResponse) -> anyhow::Result<String>;
 
     async fn complete_chat(&self, prompt: String) -> anyhow::Result<String> {
