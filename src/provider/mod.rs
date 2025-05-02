@@ -72,7 +72,7 @@ trait OnlineProviderImpl: ProviderImpl {
             .context("Failed to decode LLM response into JSON")?;
         let decoded = self.decode_llm_response(response)?;
         self.update_memory(prompt, decoded.clone())
-            .context("Failed to update memory.");
+            .context("Failed to update memory.")?;
         Ok(decoded)
     }
 }
