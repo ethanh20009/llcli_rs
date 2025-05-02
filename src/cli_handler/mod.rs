@@ -20,8 +20,9 @@ impl CliHandler {
 
     pub fn get_command(&self) -> error::Result<Commands> {
         const CHAT: &'static str = "Chat";
+        const CHAT_SEARCH: &'static str = "Chat (search)";
         const APIKEY: &'static str = "Set API Key";
-        let options_str: Vec<&str> = vec![CHAT, APIKEY];
+        let options_str: Vec<&str> = vec![CHAT, CHAT_SEARCH, APIKEY];
         let command = inquire::Select::new("Select option:", options_str)
             .prompt()
             .map_err(error::map_inquire_error)?;
@@ -31,6 +32,10 @@ impl CliHandler {
                 search: bool::default(),
             })),
             APIKEY => Ok(Commands::SetApiKey(SetApiKeyCommand { key: None })),
+            CHAT_SEARCH => Ok(Commands::Chat(ChatCommand {
+                message: None,
+                search: true,
+            })),
             _ => Err(error::Error::CommandNotOption(command.to_string())),
         }
     }
