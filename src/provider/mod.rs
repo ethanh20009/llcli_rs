@@ -1,7 +1,9 @@
+mod api_key_manager;
 mod error;
 mod gemini;
 
 use anyhow::Context;
+pub use api_key_manager::APIKeyManager;
 use gemini::GeminiProvider;
 use reqwest::Url;
 use serde::de::DeserializeOwned;
@@ -82,7 +84,6 @@ impl Provider {
     }
 
     pub fn new(
-        &self,
         config: &Configuration,
         api_key_manager: &APIKeyManager,
         cli_handler: Option<&CliHandler>,
@@ -97,31 +98,6 @@ impl Provider {
                 "invalid provider string reference. Recieved: {:?}",
                 provider
             ),
-        }
-    }
-}
-
-struct APIKeyManager {
-    user_name: String,
-}
-
-const SERVICE_NAME: &'static str = "llmcli";
-
-impl APIKeyManager {
-    fn new() -> Self {
-        Self {
-            user_name: whoami::username(),
-        }
-    }
-    fn fetch_api_key(&self, provider: &str) -> Result<String> {
-        let entry = keyring::Entry::new_with_target(provider, SERVICE_NAME, &self.user_name)
-            .expect("Failed to create keyring entry with target.");
-        match entry.get_password() {
-            Ok(password) => Ok(password),
-            Err(err) => match err {
-                keyring::Error::NoEntry => Err(Error::NoApiKey),
-                _ => Err(err.into()),
-            },
         }
     }
 }

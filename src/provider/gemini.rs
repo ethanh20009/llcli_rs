@@ -3,10 +3,10 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use crate::{cli_handler::CliHandler, configuration::GeminiProviderOpts};
+use crate::{APIKeyManager, cli_handler::CliHandler, configuration::GeminiProviderOpts};
 use anyhow::Context;
 
-use super::{APIKeyManager, GEMINI_PROVIDER, OnlineProvider, OnlineProviderImpl, ProviderImpl};
+use super::{GEMINI_PROVIDER, OnlineProvider, OnlineProviderImpl, ProviderImpl};
 
 pub struct GeminiProvider {
     provider: OnlineProvider,

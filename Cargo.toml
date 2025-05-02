@@ -10,12 +10,7 @@ reqwest = { version = "0.12.15", features = ["json"] }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = { version = "1.0.140" }
 dirs = { version = "6.0.0" }
-keyring = { version = "3.6.2", features = [
-  "linux-native-async-persistent",
-  "async-secret-service",
-  "tokio",
-  "crypto-rust",
-] }
+keyring = { version = "3.6.2", features = ["linux-native", "crypto-rust"] }
 whoami = { version = "1.6.0" }
 thiserror = { version = "2.0.12" }
 anyhow = { version = "1.0.98" }
