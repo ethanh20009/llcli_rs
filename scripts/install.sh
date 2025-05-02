@@ -41,6 +41,5 @@ if [ $? -ne 0 ]; then
 fi
 
 echo "Successfully installed '$EXECUTABLE_NAME' to '$INSTALL_DIR/'."
-echo "You should now be able to run '$EXECUTABLE_NAME' from anywhere in your terminal."
 
 exit 0
