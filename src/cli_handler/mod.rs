@@ -18,12 +18,6 @@ impl CliHandler {
             .map_err(error::map_inquire_error)
     }
 
-    pub fn get_message(&self) -> error::Result<String> {
-        inquire::Text::new("Enter message:")
-            .prompt()
-            .map_err(error::map_inquire_error)
-    }
-
     pub fn get_command(&self) -> error::Result<Commands> {
         const CHAT: &'static str = "Chat";
         const APIKEY: &'static str = "Set API Key";

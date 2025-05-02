@@ -7,6 +7,7 @@ pub use api_key_manager::APIKeyManager;
 use gemini::GeminiProvider;
 use reqwest::Url;
 use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
 
 use crate::configuration::Configuration;
 use crate::{cli_handler::CliHandler, configuration::OnlineProviderOpts};
@@ -56,18 +57,23 @@ trait OnlineProviderImpl: ProviderImpl {
     fn get_http_client(&self) -> &reqwest::Client;
     fn decode_llm_response(&self, response: Self::ProviderApiResponse) -> anyhow::Result<String>;
 
-    async fn complete_chat(&self, prompt: String) -> anyhow::Result<String> {
+    fn update_memory(&mut self, prompt: String, response: String) -> anyhow::Result<()>;
+
+    async fn complete_chat(&mut self, prompt: String) -> anyhow::Result<String> {
         let response = self
             .get_http_client()
             .post(self.build_chat_url()?)
-            .json(&self.build_chat_body(prompt))
+            .json(&self.build_chat_body(prompt.clone()))
             .send()
             .await
             .context("Request failed to LLM Provider.")?
             .json::<Self::ProviderApiResponse>()
             .await
             .context("Failed to decode LLM response into JSON")?;
-        self.decode_llm_response(response)
+        let decoded = self.decode_llm_response(response)?;
+        self.update_memory(prompt, decoded.clone())
+            .context("Failed to update memory.");
+        Ok(decoded)
     }
 }
 
@@ -79,7 +85,7 @@ pub enum Provider {
 const GEMINI_PROVIDER: &'static str = "gemini";
 
 impl Provider {
-    pub async fn complete_chat(&self, prompt: String) -> anyhow::Result<String> {
+    pub async fn complete_chat(&mut self, prompt: String) -> anyhow::Result<String> {
         match self {
             Self::Gemini(prov) => prov.complete_chat(prompt).await,
         }
@@ -101,4 +107,17 @@ impl Provider {
             ),
         }
     }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+enum ChatRole {
+    User,
+    Model,
+    System,
+}
+
+struct Chat {
+    role: ChatRole,
+    text: String,
 }

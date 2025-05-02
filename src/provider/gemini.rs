@@ -6,11 +6,12 @@ use serde_json::json;
 use crate::{APIKeyManager, cli_handler::CliHandler, configuration::GeminiProviderOpts};
 use anyhow::Context;
 
-use super::{GEMINI_PROVIDER, OnlineProvider, OnlineProviderImpl, ProviderImpl};
+use super::{Chat, ChatRole, GEMINI_PROVIDER, OnlineProvider, OnlineProviderImpl, ProviderImpl};
 
 pub struct GeminiProvider {
     provider: OnlineProvider,
     http_client: reqwest::Client,
+    memory: Vec<Chat>,
 }
 
 impl ProviderImpl for GeminiProvider {
@@ -36,16 +37,20 @@ impl OnlineProviderImpl for GeminiProvider {
     }
 
     fn build_chat_body(&self, prompt: impl Into<String>) -> serde_json::Value {
+        let mut temp_chat_hist = self
+            .memory
+            .iter()
+            .map(|chat| Self::serialise_chat(chat))
+            .collect::<Vec<_>>();
+
+        let new_chat = Chat {
+            role: ChatRole::User,
+            text: prompt.into(),
+        };
+        temp_chat_hist.push(Self::serialise_chat(&new_chat));
+
         json!({
-            "contents": [
-                {
-                    "parts": [
-                        {
-                            "text": prompt.into()
-                        }
-                    ]
-                }
-            ]
+            "contents": temp_chat_hist
         })
     }
 
@@ -66,6 +71,21 @@ impl OnlineProviderImpl for GeminiProvider {
             .clone();
         Ok(text)
     }
+
+    fn update_memory(&mut self, prompt: String, response: String) -> anyhow::Result<()> {
+        self.memory.extend(vec![
+            Chat {
+                role: ChatRole::User,
+                text: prompt,
+            },
+            Chat {
+                role: ChatRole::Model,
+                text: response,
+            },
+        ]);
+
+        Ok(())
+    }
 }
 
 impl GeminiProvider {
@@ -84,7 +104,27 @@ impl GeminiProvider {
             http_client: reqwest::Client::builder()
                 .build()
                 .expect("Failed to build http client."),
+            memory: Vec::new(),
         }
+    }
+}
+
+impl GeminiProvider {
+    fn serialise_chat(chat: &Chat) -> serde_json::Value {
+        let role = match chat.role {
+            ChatRole::Model => "model",
+            ChatRole::System => "system",
+            ChatRole::User => "user",
+        };
+
+        json!({
+            "role": role,
+            "parts": [
+                {
+                    "text": chat.text
+                }
+            ]
+        })
     }
 }
 
