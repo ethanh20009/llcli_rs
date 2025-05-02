@@ -7,7 +7,7 @@ mod error;
 
 use crate::{
     configuration::Configuration,
-    provider::{APIKeyManager, Provider},
+    provider::{APIKeyManager, LLMTools, Provider},
 };
 
 pub struct CliHandler;
@@ -26,7 +26,10 @@ impl CliHandler {
             .prompt()
             .map_err(error::map_inquire_error)?;
         match command {
-            CHAT => Ok(Commands::Chat(ChatCommand { message: None })),
+            CHAT => Ok(Commands::Chat(ChatCommand {
+                message: None,
+                search: bool::default(),
+            })),
             APIKEY => Ok(Commands::SetApiKey(SetApiKeyCommand { key: None })),
             _ => Err(error::Error::CommandNotOption(command.to_string())),
         }
@@ -39,6 +42,7 @@ impl CliHandler {
 pub struct Cli {
     #[arg(short, long)]
     quiet: bool,
+
     #[command(subcommand)]
     command: Option<Commands>,
 }
@@ -48,6 +52,18 @@ pub struct ChatCommand {
     /// ask a one shot message
     #[arg(short, long)]
     message: Option<String>,
+
+    #[arg(short, long)]
+    search: bool,
+}
+
+impl ChatCommand {
+    pub fn get_tools(&self) -> LLMTools {
+        LLMTools {
+            search: self.search,
+            ..Default::default()
+        }
+    }
 }
 
 #[derive(Args, Debug)]

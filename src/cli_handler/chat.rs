@@ -19,6 +19,7 @@ impl Cli {
     ) -> anyhow::Result<()> {
         let mut llm_provider =
             Provider::new(&state.config, &state.api_key_manager, state.cli_handler);
+        llm_provider.merge_tools(command.get_tools());
 
         match (command.message, &state.cli_handler) {
             (None, Some(handler)) => loop {

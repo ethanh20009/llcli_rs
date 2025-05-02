@@ -3,20 +3,32 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use crate::{APIKeyManager, cli_handler::CliHandler, configuration::GeminiProviderOpts};
+use crate::{
+    APIKeyManager,
+    cli_handler::CliHandler,
+    configuration::{Configuration, GeminiProviderOpts},
+};
 use anyhow::Context;
 
-use super::{Chat, ChatRole, GEMINI_PROVIDER, OnlineProvider, OnlineProviderImpl, ProviderImpl};
+use super::{
+    Chat, ChatRole, GEMINI_PROVIDER, LLMTools, OnlineProvider, OnlineProviderImpl, ProviderImpl,
+};
 
 pub struct GeminiProvider {
     provider: OnlineProvider,
     http_client: reqwest::Client,
     memory: Vec<Chat>,
+
+    gemini_tools: LLMTools,
 }
 
 impl ProviderImpl for GeminiProvider {
     fn provider_str() -> &'static str {
         GEMINI_PROVIDER
+    }
+
+    fn merge_tools(&mut self, tools: LLMTools) {
+        self.gemini_tools.merge(&tools);
     }
 }
 
@@ -50,7 +62,8 @@ impl OnlineProviderImpl for GeminiProvider {
         temp_chat_hist.push(Self::serialise_chat(&new_chat));
 
         json!({
-            "contents": temp_chat_hist
+            "contents": temp_chat_hist,
+            "tools": self.build_tools()
         })
     }
 
@@ -90,14 +103,14 @@ impl OnlineProviderImpl for GeminiProvider {
 
 impl GeminiProvider {
     pub fn new(
-        config: &GeminiProviderOpts,
+        config: &Configuration,
         api_key_manager: &APIKeyManager,
         cli_handler: Option<&CliHandler>,
     ) -> Self {
         Self {
             provider: OnlineProvider::new(
                 GeminiProvider::provider_str(),
-                &config.online_opts,
+                &config.provider_opts.gemini.online_opts,
                 api_key_manager,
                 cli_handler,
             ),
@@ -105,6 +118,7 @@ impl GeminiProvider {
                 .build()
                 .expect("Failed to build http client."),
             memory: Vec::new(),
+            gemini_tools: LLMTools::new(config),
         }
     }
 }
@@ -125,6 +139,14 @@ impl GeminiProvider {
                 }
             ]
         })
+    }
+
+    fn build_tools(&self) -> serde_json::Value {
+        let mut enabled_tools = Vec::new();
+        if self.gemini_tools.search {
+            enabled_tools.push(json!({ "google_search": {}}));
+        }
+        json!(enabled_tools)
     }
 }
 

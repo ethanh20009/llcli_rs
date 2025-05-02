@@ -46,6 +46,8 @@ impl OnlineProvider {
 
 trait ProviderImpl {
     fn provider_str() -> &'static str;
+
+    fn merge_tools(&mut self, tools: LLMTools);
 }
 
 trait OnlineProviderImpl: ProviderImpl {
@@ -96,14 +98,40 @@ impl Provider {
         cli_handler: Option<&CliHandler>,
     ) -> Provider {
         match config.provider.as_str() {
-            GEMINI_PROVIDER => {
-                GeminiProvider::new(&config.provider_opts.gemini, api_key_manager, cli_handler)
-                    .into()
-            }
+            GEMINI_PROVIDER => GeminiProvider::new(&config, api_key_manager, cli_handler).into(),
             _ => panic!(
                 "invalid provider string reference. Recieved: {:?}",
                 config.provider.as_str()
             ),
+        }
+    }
+
+    pub fn merge_tools(&mut self, tools: LLMTools) {
+        match self {
+            Self::Gemini(provider) => provider.merge_tools(tools),
+        }
+    }
+}
+
+#[derive(Default, Debug, Clone)]
+pub struct LLMTools {
+    pub search: bool,
+}
+
+impl LLMTools {
+    pub fn new(config: &Configuration) -> Self {
+        LLMTools {
+            search: config
+                .tools
+                .as_ref()
+                .and_then(|tool_options| tool_options.search_default)
+                .unwrap_or_default(),
+        }
+    }
+
+    fn merge(&mut self, tool_flags: &LLMTools) {
+        if tool_flags.search {
+            self.search = true
         }
     }
 }

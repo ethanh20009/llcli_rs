@@ -7,6 +7,7 @@ const DEFAULT_CONFIG: &str = include_str!("default_config.toml");
 pub struct Configuration {
     pub provider: String,
     pub provider_opts: ProviderOpts,
+    pub tools: Option<ToolOptions>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -18,6 +19,11 @@ pub struct ProviderOpts {
 pub struct OnlineProviderOpts {
     pub url: String,
     pub model: String,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct ToolOptions {
+    pub search_default: Option<bool>,
 }
 
 pub struct ConfigManager {
