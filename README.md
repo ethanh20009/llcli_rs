@@ -1,6 +1,6 @@
 # LLCLI_RS - A CLI Tool for using LLMs - Built with Rust
 
-https://github.com/user-attachments/assets/81b6b474-54d2-4dc2-80bc-e9f96b665e7a
+<https://github.com/user-attachments/assets/81b6b474-54d2-4dc2-80bc-e9f96b665e7a>
 
 LLCLI_RS is a blazing-fast, robust, and versatile command-line interface (CLI) for interacting with Large Language Models (LLMs).
 Built with the power and safety of Rust,
@@ -27,6 +27,10 @@ Requirements:
 - Cargo [https://doc.rust-lang.org/cargo/getting-started/installation.html](https://doc.rust-lang.org/cargo/getting-started/installation.html)
 
 ### Linux
+
+Requirements:
+
+- **Dbus-based Secret Service**: Use [Gnome-Keyring](https://wiki.gnome.org/Projects/GnomeKeyring)
 
 Simply clone and run `./scripts/install.sh`
 
