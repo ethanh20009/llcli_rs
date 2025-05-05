@@ -27,6 +27,8 @@ impl CliHandler {
                     .trim()
                     .to_string(),
             })
+        } else if response.trim() == "/clear" {
+            Ok(ChatAction::Clear)
         } else if response == "" {
             Ok(ChatAction::End)
         } else {
