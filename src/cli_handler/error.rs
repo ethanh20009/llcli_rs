@@ -10,6 +10,8 @@ pub enum Error {
     InquiryError(#[from] InquireError),
     #[error("Command: {0} not an option.")]
     CommandNotOption(String),
+    #[error("File Handler error. {0}")]
+    FileHandlerError(#[from] anyhow::Error),
 }
 
 pub fn map_inquire_error(err: InquireError) -> Error {

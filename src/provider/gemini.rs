@@ -96,6 +96,11 @@ impl OnlineProviderImpl for GeminiProvider {
 
         Ok(())
     }
+
+    /// Used when providing model context.
+    fn add_chat_to_context(&mut self, chat: Chat) -> anyhow::Result<()> {
+        Ok(self.memory.push(chat))
+    }
 }
 
 impl GeminiProvider {

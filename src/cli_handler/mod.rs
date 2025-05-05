@@ -1,17 +1,26 @@
 use anyhow::Context;
 use clap::{Args, Parser, Subcommand};
+use file_input::FileInputHandler;
 
 mod api_key;
 mod chat;
 mod error;
+mod file_input;
 
 use crate::{
     configuration::Configuration,
     provider::{APIKeyManager, LLMTools, Provider},
 };
 
-pub struct CliHandler;
+pub struct CliHandler {
+    file_handler: FileInputHandler,
+}
 impl CliHandler {
+    pub fn new() -> anyhow::Result<Self> {
+        Ok(Self {
+            file_handler: FileInputHandler::new()?,
+        })
+    }
     pub fn get_api_key(&self) -> error::Result<String> {
         inquire::Text::new("Enter API key:")
             .prompt()
@@ -90,7 +99,11 @@ impl Cli {
         config: &Configuration,
         api_key_manager: &APIKeyManager,
     ) -> anyhow::Result<()> {
-        let cli_handler = if self.quiet { None } else { Some(CliHandler) };
+        let cli_handler = if self.quiet {
+            None
+        } else {
+            Some(CliHandler::new()?)
+        };
         let state = CommandState::new(cli_handler.as_ref(), config, &api_key_manager, self.quiet);
 
         let command = match self.command {

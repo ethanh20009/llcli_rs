@@ -59,6 +59,7 @@ trait OnlineProviderImpl: ProviderImpl {
     fn decode_llm_response(&self, response: Self::ProviderApiResponse) -> anyhow::Result<String>;
 
     fn update_memory(&mut self, prompt: String, response: String) -> anyhow::Result<()>;
+    fn add_chat_to_context(&mut self, chat: Chat) -> anyhow::Result<()>;
 
     async fn complete_chat(&mut self, prompt: String) -> anyhow::Result<String> {
         let response = self
@@ -111,6 +112,12 @@ impl Provider {
             Self::Gemini(provider) => provider.merge_tools(tools),
         }
     }
+
+    pub fn add_chat_to_context(&mut self, chat: Chat) -> anyhow::Result<()> {
+        match self {
+            Self::Gemini(provider) => provider.add_chat_to_context(chat),
+        }
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -138,13 +145,13 @@ impl LLMTools {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-enum ChatRole {
+pub(crate) enum ChatRole {
     User,
     Model,
     System,
 }
 
-struct Chat {
-    role: ChatRole,
-    text: String,
+pub(crate) struct Chat {
+    pub(crate) role: ChatRole,
+    pub(crate) text: String,
 }
