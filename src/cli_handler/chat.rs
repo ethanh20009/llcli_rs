@@ -66,7 +66,7 @@ impl Cli {
                                 .chat_from_file(&path)
                                 .context("Failed to add file to context.")?,
                         )?;
-                        print_text(&format!("---\nFile Added{}\n---", path));
+                        print_text(&format!("---\nFile Added: {}\n---", path));
                     }
                     ChatAction::End => return Ok(()),
                 }
