@@ -4,7 +4,7 @@ pub struct APIKeyManager {
     user_name: String,
 }
 
-const SERVICE_NAME: &'static str = "llmcli";
+const SERVICE_NAME: &'static str = "llmcli_rs";
 
 impl APIKeyManager {
     pub fn new() -> Self {

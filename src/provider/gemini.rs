@@ -3,11 +3,8 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use crate::{
-    APIKeyManager,
-    cli_handler::CliHandler,
-    configuration::{Configuration, GeminiProviderOpts},
-};
+use crate::{APIKeyManager, cli_handler::CliHandler, configuration::Configuration};
+
 use anyhow::Context;
 
 use super::{
