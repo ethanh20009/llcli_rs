@@ -25,11 +25,11 @@ impl FileInputHandler {
             role: crate::provider::ChatRole::User,
             text: format!(
                 r#"
-                I have given you the contents of a file for reference.
-                File: #{}
-                ```
-                {}
-                ```"#,
+I have given you the contents of a file for reference.
+File: #{}
+```
+{}
+```"#,
                 path, contents
             ),
         })
@@ -70,7 +70,14 @@ impl Autocomplete for FileInputHandler {
         highlighted_suggestion: Option<String>,
     ) -> Result<inquire::autocompletion::Replacement, inquire::CustomUserError> {
         if let Some(suggestion) = highlighted_suggestion {
-            Ok(Some(format!("{}{}", FILE_INPUT_TRIGGER, suggestion)))
+            let trailing =
+                if std::path::Path::new(suggestion.trim_start_matches(FILE_INPUT_TRIGGER)).is_dir()
+                {
+                    &std::path::MAIN_SEPARATOR.to_string()
+                } else {
+                    ""
+                };
+            Ok(Some(format!("{}{}", suggestion, trailing)))
         } else {
             Ok(None)
         }

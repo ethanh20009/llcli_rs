@@ -27,6 +27,30 @@ impl ProviderImpl for GeminiProvider {
     fn merge_tools(&mut self, tools: LLMTools) {
         self.gemini_tools.merge(&tools);
     }
+
+    fn update_memory(&mut self, prompt: String, response: String) -> anyhow::Result<()> {
+        self.memory.extend(vec![
+            Chat {
+                role: ChatRole::User,
+                text: prompt,
+            },
+            Chat {
+                role: ChatRole::Model,
+                text: response,
+            },
+        ]);
+
+        Ok(())
+    }
+
+    /// Used when providing model context.
+    fn add_chat_to_context(&mut self, chat: Chat) -> anyhow::Result<()> {
+        Ok(self.memory.push(chat))
+    }
+
+    fn clear_memory(&mut self) -> anyhow::Result<()> {
+        Ok(self.memory.clear())
+    }
 }
 
 impl OnlineProviderImpl for GeminiProvider {
@@ -80,26 +104,6 @@ impl OnlineProviderImpl for GeminiProvider {
             .text
             .clone();
         Ok(text)
-    }
-
-    fn update_memory(&mut self, prompt: String, response: String) -> anyhow::Result<()> {
-        self.memory.extend(vec![
-            Chat {
-                role: ChatRole::User,
-                text: prompt,
-            },
-            Chat {
-                role: ChatRole::Model,
-                text: response,
-            },
-        ]);
-
-        Ok(())
-    }
-
-    /// Used when providing model context.
-    fn add_chat_to_context(&mut self, chat: Chat) -> anyhow::Result<()> {
-        Ok(self.memory.push(chat))
     }
 }
 

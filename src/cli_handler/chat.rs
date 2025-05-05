@@ -1,22 +1,22 @@
 use anyhow::Context;
 use termimad::{MadSkin, print_text};
 
-use super::file_input::{FILE_INPUT_TRIGGER, FileInputHandler};
+use super::file_input::FILE_INPUT_TRIGGER;
 use super::{ChatCommand, Cli, CliHandler};
 use super::{CommandState, Provider};
 
 enum ChatAction {
     AddFile { path: String },
     Text(String),
+    Clear,
     End,
 }
 
 impl CliHandler {
     fn get_message(&self) -> super::error::Result<ChatAction> {
-        let file_handler =
-            FileInputHandler::new().context("Failed to construct file input handler.")?;
         let response = inquire::Text::new("Enter message (leave blank to exit):")
-            .with_autocomplete(file_handler)
+            .with_help_message("Try: '#file:', '/clear'")
+            .with_autocomplete(self.file_handler.clone())
             .prompt()
             .map_err(super::error::map_inquire_error)?;
 
@@ -67,6 +67,9 @@ impl Cli {
                                 .context("Failed to add file to context.")?,
                         )?;
                         print_text(&format!("---\nFile Added: {}\n---", path));
+                    }
+                    ChatAction::Clear => {
+                        llm_provider.clear_history();
                     }
                     ChatAction::End => return Ok(()),
                 }

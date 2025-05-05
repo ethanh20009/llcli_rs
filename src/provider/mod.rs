@@ -48,6 +48,10 @@ trait ProviderImpl {
     fn provider_str() -> &'static str;
 
     fn merge_tools(&mut self, tools: LLMTools);
+
+    fn update_memory(&mut self, prompt: String, response: String) -> anyhow::Result<()>;
+    fn add_chat_to_context(&mut self, chat: Chat) -> anyhow::Result<()>;
+    fn clear_memory(&mut self) -> anyhow::Result<()>;
 }
 
 trait OnlineProviderImpl: ProviderImpl {
@@ -57,9 +61,6 @@ trait OnlineProviderImpl: ProviderImpl {
     fn build_chat_body(&self, prompt: impl Into<String>) -> serde_json::Value;
     fn get_http_client(&self) -> &reqwest::Client;
     fn decode_llm_response(&self, response: Self::ProviderApiResponse) -> anyhow::Result<String>;
-
-    fn update_memory(&mut self, prompt: String, response: String) -> anyhow::Result<()>;
-    fn add_chat_to_context(&mut self, chat: Chat) -> anyhow::Result<()>;
 
     async fn complete_chat(&mut self, prompt: String) -> anyhow::Result<String> {
         let response = self
@@ -116,6 +117,12 @@ impl Provider {
     pub fn add_chat_to_context(&mut self, chat: Chat) -> anyhow::Result<()> {
         match self {
             Self::Gemini(provider) => provider.add_chat_to_context(chat),
+        }
+    }
+
+    pub fn clear_history(&mut self) -> anyhow::Result<()> {
+        match self {
+            Self::Gemini(provider) => provider.clear_memory(),
         }
     }
 }
