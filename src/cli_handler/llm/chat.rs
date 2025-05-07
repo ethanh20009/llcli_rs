@@ -1,44 +1,10 @@
 use anyhow::Context;
-use termimad::{MadSkin, print_text};
 
-use super::file_input::FILE_INPUT_TRIGGER;
-use super::{ChatCommand, Cli, CliHandler};
+use super::{ChatAction, ChatCommand, Cli, output_file_added, output_response};
 use super::{CommandState, Provider};
 
-enum ChatAction {
-    AddFile { path: String },
-    Text(String),
-    Clear,
-    End,
-}
-
-impl CliHandler {
-    fn get_message(&self) -> super::error::Result<ChatAction> {
-        let response = inquire::Text::new("Enter message (leave blank to exit):")
-            .with_help_message("Try: '#file:', '/clear'")
-            .with_autocomplete(self.file_handler.clone())
-            .prompt()
-            .map_err(super::error::map_inquire_error)?;
-
-        if response.contains(FILE_INPUT_TRIGGER) {
-            Ok(ChatAction::AddFile {
-                path: response
-                    .trim_start_matches(FILE_INPUT_TRIGGER)
-                    .trim()
-                    .to_string(),
-            })
-        } else if response.trim() == "/clear" {
-            Ok(ChatAction::Clear)
-        } else if response == "" {
-            Ok(ChatAction::End)
-        } else {
-            Ok(ChatAction::Text(response))
-        }
-    }
-}
-
 impl Cli {
-    pub(super) async fn handle_chat(
+    pub(crate) async fn handle_chat(
         command: ChatCommand,
         state: &CommandState<'_>,
     ) -> anyhow::Result<()> {
@@ -68,10 +34,10 @@ impl Cli {
                                 .chat_from_file(&path)
                                 .context("Failed to add file to context.")?,
                         )?;
-                        print_text(&format!("---\nFile Added: {}\n---", path));
+                        output_file_added(&path);
                     }
                     ChatAction::Clear => {
-                        llm_provider.clear_history();
+                        llm_provider.clear_history()?;
                     }
                     ChatAction::End => return Ok(()),
                 }
@@ -89,14 +55,5 @@ impl Cli {
                 Ok(())
             }
         }
-    }
-}
-
-fn output_response(response: &str, state: &CommandState) {
-    if state.quiet {
-        println!("{}", response);
-    } else {
-        let skin = MadSkin::default();
-        skin.print_text(format!("---\n{}\n---", response).as_str());
     }
 }

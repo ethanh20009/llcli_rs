@@ -3,6 +3,27 @@
 # Define the installation directory
 INSTALL_DIR="/usr/local/bin"
 
+# Parse arguments
+SHELL_ARG=""
+while [[ "$#" -gt 0 ]]; do
+  case $1 in
+  --shell)
+    SHELL_ARG="$2"
+    shift # past argument
+    shift # past value
+    ;;
+  *)
+    echo "Unknown argument: $1"
+    exit 1
+    ;;
+  esac
+done
+
+# Handle possible terminal integrations
+if [ -z "$SHELL_ARG" ]; then
+  SHELL_ARG="none"
+fi
+
 echo "Building project in release mode..."
 # Build the project in release mode
 cargo build --release
@@ -37,6 +58,27 @@ sudo cp "$EXECUTABLE" "$INSTALL_DIR/"
 if [ $? -ne 0 ]; then
   echo "Error: Failed to copy the executable to '$INSTALL_DIR/'."
   echo "Please ensure you have the necessary permissions (sudo)."
+  exit 1
+fi
+
+echo "Checking for shell integration options."
+
+if [[ "$SHELL_ARG" == "none" ]]; then
+  echo "No shell integration will be used."
+# elif [[ "$SHELL_ARG" == "zsh" ]]; then
+#   echo "Zsh shell integration will be used."
+elif [[ "$SHELL_ARG" == "fish" ]]; then
+  echo "Fish shell integration will be used."
+  # Check fish installed
+  if ! command -v fish &>/dev/null; then
+    echo "Fish shell is not installed. Please install it first."
+    exit 1
+  fi
+  # Use integrations/install_fish.fish relative from this script.
+  INSTALL_FISH_SCRIPT="$(dirname "$0")/integrations/install_fish.fish"
+  fish "$INSTALL_FISH_SCRIPT"
+else
+  echo "Unknown shell argument: $SHELL_ARG"
   exit 1
 fi
 

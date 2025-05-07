@@ -15,6 +15,7 @@ pub struct GeminiProvider {
     provider: OnlineProvider,
     http_client: reqwest::Client,
     memory: Vec<Chat>,
+    system_prompt: Option<String>,
 
     gemini_tools: LLMTools,
 }
@@ -45,7 +46,13 @@ impl ProviderImpl for GeminiProvider {
 
     /// Used when providing model context.
     fn add_chat_to_context(&mut self, chat: Chat) -> anyhow::Result<()> {
-        Ok(self.memory.push(chat))
+        match &chat.role {
+            &ChatRole::System => {
+                self.system_prompt = Some(chat.text);
+                Ok(())
+            }
+            _ => Ok(self.memory.push(chat)),
+        }
     }
 
     fn clear_memory(&mut self) -> anyhow::Result<()> {
@@ -70,9 +77,21 @@ impl OnlineProviderImpl for GeminiProvider {
     }
 
     fn build_chat_body(&self, prompt: impl Into<String>) -> serde_json::Value {
+        let system_prompt = if let Some(instructions) = &self.system_prompt {
+            json!({
+                "parts": [
+                    {
+                        "text": instructions
+                    }
+                ]
+            })
+        } else {
+            json!(null)
+        };
         let mut temp_chat_hist = self
             .memory
             .iter()
+            .filter(|item| item.role != ChatRole::System)
             .map(|chat| Self::serialise_chat(chat))
             .collect::<Vec<_>>();
 
@@ -83,6 +102,7 @@ impl OnlineProviderImpl for GeminiProvider {
         temp_chat_hist.push(Self::serialise_chat(&new_chat));
 
         json!({
+            "system_instruction": system_prompt,
             "contents": temp_chat_hist,
             "tools": self.build_tools()
         })
@@ -125,6 +145,7 @@ impl GeminiProvider {
                 .expect("Failed to build http client."),
             memory: Vec::new(),
             gemini_tools: LLMTools::new(config),
+            system_prompt: None,
         }
     }
 }
@@ -133,7 +154,7 @@ impl GeminiProvider {
     fn serialise_chat(chat: &Chat) -> serde_json::Value {
         let role = match chat.role {
             ChatRole::Model => "model",
-            ChatRole::System => "system",
+            ChatRole::System => "system_instruction",
             ChatRole::User => "user",
         };
 

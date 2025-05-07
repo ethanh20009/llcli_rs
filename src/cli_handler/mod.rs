@@ -3,9 +3,9 @@ use clap::{Args, Parser, Subcommand};
 use file_input::FileInputHandler;
 
 mod api_key;
-mod chat;
 mod error;
 mod file_input;
+mod llm;
 
 use crate::{
     configuration::Configuration,
@@ -90,6 +90,7 @@ pub struct SetApiKeyCommand {
 #[derive(Subcommand, Debug)]
 pub enum Commands {
     Chat(ChatCommand),
+    Code(ChatCommand),
     SetApiKey(SetApiKeyCommand),
 }
 
@@ -117,6 +118,7 @@ impl Cli {
 
         let result = match command {
             Commands::Chat(command) => Cli::handle_chat(command, &state).await,
+            Commands::Code(command) => Cli::handle_code(command, &state).await,
             Commands::SetApiKey(command) => Cli::handle_api_key(command, &state),
         };
 
@@ -130,7 +132,7 @@ impl Cli {
     }
 }
 
-struct CommandState<'a> {
+pub(super) struct CommandState<'a> {
     cli_handler: Option<&'a CliHandler>,
     config: &'a Configuration,
     api_key_manager: &'a APIKeyManager,
