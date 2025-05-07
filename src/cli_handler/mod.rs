@@ -28,22 +28,32 @@ impl CliHandler {
     }
 
     pub fn get_command(&self) -> error::Result<Commands> {
-        const CHAT: &'static str = "Chat";
-        const CHAT_SEARCH: &'static str = "Chat (search)";
-        const APIKEY: &'static str = "Set API Key";
-        let options_str: Vec<&str> = vec![CHAT, CHAT_SEARCH, APIKEY];
+        const CHAT_COMMAND: &'static str = "Chat";
+        const CHAT_SEARCH_COMMAND: &'static str = "Chat (search)";
+        const CODE_COMMAND: &'static str = "Code";
+        const APIKEY_COMMAND: &'static str = "Set API Key";
+        let options_str: Vec<&str> = vec![
+            CHAT_COMMAND,
+            CHAT_SEARCH_COMMAND,
+            CODE_COMMAND,
+            APIKEY_COMMAND,
+        ];
         let command = inquire::Select::new("Select option:", options_str)
             .prompt()
             .map_err(error::map_inquire_error)?;
         match command {
-            CHAT => Ok(Commands::Chat(ChatCommand {
+            CHAT_COMMAND => Ok(Commands::Chat(ChatCommand {
                 message: None,
                 search: bool::default(),
             })),
-            APIKEY => Ok(Commands::SetApiKey(SetApiKeyCommand { key: None })),
-            CHAT_SEARCH => Ok(Commands::Chat(ChatCommand {
+            APIKEY_COMMAND => Ok(Commands::SetApiKey(SetApiKeyCommand { key: None })),
+            CHAT_SEARCH_COMMAND => Ok(Commands::Chat(ChatCommand {
                 message: None,
                 search: true,
+            })),
+            CODE_COMMAND => Ok(Commands::Code(ChatCommand {
+                message: None,
+                search: bool::default(),
             })),
             _ => Err(error::Error::CommandNotOption(command.to_string())),
         }
