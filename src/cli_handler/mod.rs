@@ -6,6 +6,7 @@ mod api_key;
 mod error;
 mod file_input;
 mod llm;
+mod ratatui_app;
 
 use crate::{
     configuration::Configuration,

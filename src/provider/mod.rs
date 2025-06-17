@@ -12,6 +12,7 @@ use crate::configuration::Configuration;
 use crate::{cli_handler::CliHandler, configuration::OnlineProviderOpts};
 use error::{Error, Result};
 
+#[derive(Debug)]
 struct OnlineProvider {
     api_key: String,
     url: String,
@@ -52,6 +53,7 @@ trait ProviderImpl {
     fn update_memory(&mut self, prompt: String, response: String) -> anyhow::Result<()>;
     fn add_chat_to_context(&mut self, chat: Chat) -> anyhow::Result<()>;
     fn clear_memory(&mut self) -> anyhow::Result<()>;
+    fn get_history(&self) -> &Vec<Chat>;
 }
 
 trait OnlineProviderImpl: ProviderImpl {
@@ -80,7 +82,7 @@ trait OnlineProviderImpl: ProviderImpl {
     }
 }
 
-#[derive(derive_more::From)]
+#[derive(derive_more::From, Debug)]
 pub enum Provider {
     Gemini(GeminiProvider),
 }
@@ -114,7 +116,7 @@ impl Provider {
         }
     }
 
-    pub fn add_chat_to_context(&mut self, chat: Chat) -> anyhow::Result<()> {
+    pub(crate) fn add_chat_to_context(&mut self, chat: Chat) -> anyhow::Result<()> {
         match self {
             Self::Gemini(provider) => provider.add_chat_to_context(chat),
         }
@@ -123,6 +125,12 @@ impl Provider {
     pub fn clear_history(&mut self) -> anyhow::Result<()> {
         match self {
             Self::Gemini(provider) => provider.clear_memory(),
+        }
+    }
+
+    pub(crate) fn get_history(&self) -> &Vec<Chat> {
+        match self {
+            Self::Gemini(provider) => provider.get_history(),
         }
     }
 }
@@ -158,6 +166,7 @@ pub(crate) enum ChatRole {
     System,
 }
 
+#[derive(Debug)]
 pub(crate) struct Chat {
     pub(crate) role: ChatRole,
     pub(crate) text: String,

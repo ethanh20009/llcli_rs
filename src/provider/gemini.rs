@@ -11,6 +11,7 @@ use super::{
     Chat, ChatRole, GEMINI_PROVIDER, LLMTools, OnlineProvider, OnlineProviderImpl, ProviderImpl,
 };
 
+#[derive(Debug)]
 pub struct GeminiProvider {
     provider: OnlineProvider,
     http_client: reqwest::Client,
@@ -57,6 +58,10 @@ impl ProviderImpl for GeminiProvider {
 
     fn clear_memory(&mut self) -> anyhow::Result<()> {
         Ok(self.memory.clear())
+    }
+
+    fn get_history(&self) -> &Vec<Chat> {
+        &self.memory
     }
 }
 

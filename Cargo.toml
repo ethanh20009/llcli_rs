@@ -22,6 +22,9 @@ inquire = { version = "0.7.5", features = ["macros"] }
 derive_more = { version = "2.0.1", features = ["from"] }
 termimad = { version = "0.31.3" }
 glob = { version = "0.3.2" }
+ratatui = { version = "0.29.0", features = ["crossterm"] }
+crossterm = { version = "0.29.0" }
+tui-textarea = { version = "0.7.0" }
 
 [profile.release]
 strip = "debuginfo"
