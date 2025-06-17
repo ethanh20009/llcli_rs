@@ -26,7 +26,7 @@ impl<'a, 't> App<'a, 't> {
         Self {
             provider,
             exit: false,
-            textarea: TextArea::default(),
+            textarea: Self::create_chat_input(),
         }
     }
 
@@ -68,6 +68,7 @@ impl<'a, 't> Widget for &App<'a, 't> {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let layout = Layout::vertical(Constraint::from_ratios([(3, 4), (1, 4)])).split(area);
         self.render_chat_history(layout[0], buf);
+        self.textarea.render(layout[1], buf);
     }
 }
 
@@ -93,5 +94,17 @@ impl<'a, 't> App<'a, 't> {
             .centered()
             .block(block)
             .render(area, buf);
+    }
+
+    fn create_chat_input() -> TextArea<'t> {
+        let title = Line::from("Chat Input".bold());
+        let block = Block::bordered()
+            .title(title.centered())
+            .border_set(border::THICK);
+
+        let mut textarea = TextArea::default();
+        textarea.set_block(block);
+
+        textarea
     }
 }
