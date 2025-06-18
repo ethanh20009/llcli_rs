@@ -1,6 +1,6 @@
 use anyhow::Context;
 
-use crate::provider::{Chat, Provider};
+use crate::provider::{ChatData, Provider};
 
 use super::{ChatAction, ChatCommand, Cli, CommandState, output_response};
 
@@ -12,10 +12,10 @@ impl Cli {
         let mut llm_provider =
             Provider::new(&state.config, &state.api_key_manager, state.cli_handler);
         llm_provider.merge_tools(command.get_tools());
-        llm_provider.add_chat_to_context(Chat {
+        llm_provider.add_chat_to_context(ChatData {
             role: crate::provider::ChatRole::System,
             text: "The user is issuing a code generation command. You must only respond with the code you have generated.".to_string()
-        })?;
+        }.into())?;
 
         match (command.message, &state.cli_handler) {
             (None, Some(handler)) => loop {

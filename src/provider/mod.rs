@@ -4,6 +4,7 @@ mod gemini;
 
 use anyhow::Context;
 pub use api_key_manager::APIKeyManager;
+use derive_more::From;
 use gemini::GeminiProvider;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -51,9 +52,9 @@ trait ProviderImpl {
     fn merge_tools(&mut self, tools: LLMTools);
 
     fn update_memory(&mut self, prompt: String, response: String) -> anyhow::Result<()>;
-    fn add_chat_to_context(&mut self, chat: Chat) -> anyhow::Result<()>;
+    fn add_chat_to_context(&mut self, chat: ChatHistoryItem) -> anyhow::Result<()>;
     fn clear_memory(&mut self) -> anyhow::Result<()>;
-    fn get_history(&self) -> &Vec<Chat>;
+    fn get_history(&self) -> &Vec<ChatHistoryItem>;
 }
 
 trait OnlineProviderImpl: ProviderImpl {
@@ -116,7 +117,7 @@ impl Provider {
         }
     }
 
-    pub(crate) fn add_chat_to_context(&mut self, chat: Chat) -> anyhow::Result<()> {
+    pub(crate) fn add_chat_to_context(&mut self, chat: ChatHistoryItem) -> anyhow::Result<()> {
         match self {
             Self::Gemini(provider) => provider.add_chat_to_context(chat),
         }
@@ -128,7 +129,7 @@ impl Provider {
         }
     }
 
-    pub(crate) fn get_history(&self) -> &Vec<Chat> {
+    pub(crate) fn get_history(&self) -> &Vec<ChatHistoryItem> {
         match self {
             Self::Gemini(provider) => provider.get_history(),
         }
@@ -167,7 +168,19 @@ pub(crate) enum ChatRole {
 }
 
 #[derive(Debug)]
-pub(crate) struct Chat {
+pub(crate) struct ChatData {
     pub(crate) role: ChatRole,
     pub(crate) text: String,
+}
+
+#[derive(Debug)]
+pub(crate) struct FileUploadData {
+    pub(crate) text: String,
+    pub(crate) relative_filepath: String,
+}
+
+#[derive(Debug, From)]
+pub(crate) enum ChatHistoryItem {
+    FileUpload(FileUploadData),
+    Chat(ChatData),
 }

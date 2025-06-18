@@ -8,14 +8,15 @@ use crate::{APIKeyManager, cli_handler::CliHandler, configuration::Configuration
 use anyhow::Context;
 
 use super::{
-    Chat, ChatRole, GEMINI_PROVIDER, LLMTools, OnlineProvider, OnlineProviderImpl, ProviderImpl,
+    ChatData, ChatHistoryItem, ChatRole, FileUploadData, GEMINI_PROVIDER, LLMTools, OnlineProvider,
+    OnlineProviderImpl, ProviderImpl,
 };
 
 #[derive(Debug)]
 pub struct GeminiProvider {
     provider: OnlineProvider,
     http_client: reqwest::Client,
-    memory: Vec<Chat>,
+    memory: Vec<ChatHistoryItem>,
     system_prompt: Option<String>,
 
     gemini_tools: LLMTools,
@@ -32,24 +33,29 @@ impl ProviderImpl for GeminiProvider {
 
     fn update_memory(&mut self, prompt: String, response: String) -> anyhow::Result<()> {
         self.memory.extend(vec![
-            Chat {
+            ChatData {
                 role: ChatRole::User,
                 text: prompt,
-            },
-            Chat {
+            }
+            .into(),
+            ChatData {
                 role: ChatRole::Model,
                 text: response,
-            },
+            }
+            .into(),
         ]);
 
         Ok(())
     }
 
     /// Used when providing model context.
-    fn add_chat_to_context(&mut self, chat: Chat) -> anyhow::Result<()> {
-        match &chat.role {
-            &ChatRole::System => {
-                self.system_prompt = Some(chat.text);
+    fn add_chat_to_context(&mut self, chat: ChatHistoryItem) -> anyhow::Result<()> {
+        match chat {
+            ChatHistoryItem::Chat(ChatData {
+                role: ChatRole::System,
+                text,
+            }) => {
+                self.system_prompt = Some(text);
                 Ok(())
             }
             _ => Ok(self.memory.push(chat)),
@@ -60,7 +66,7 @@ impl ProviderImpl for GeminiProvider {
         Ok(self.memory.clear())
     }
 
-    fn get_history(&self) -> &Vec<Chat> {
+    fn get_history(&self) -> &Vec<ChatHistoryItem> {
         &self.memory
     }
 }
@@ -96,14 +102,21 @@ impl OnlineProviderImpl for GeminiProvider {
         let mut temp_chat_hist = self
             .memory
             .iter()
-            .filter(|item| item.role != ChatRole::System)
+            .filter(|item| match item {
+                ChatHistoryItem::Chat(ChatData {
+                    role: ChatRole::System,
+                    text: _,
+                }) => false,
+                _ => true,
+            })
             .map(|chat| Self::serialise_chat(chat))
             .collect::<Vec<_>>();
 
-        let new_chat = Chat {
+        let new_chat = ChatData {
             role: ChatRole::User,
             text: prompt.into(),
-        };
+        }
+        .into();
         temp_chat_hist.push(Self::serialise_chat(&new_chat));
 
         json!({
@@ -156,21 +169,36 @@ impl GeminiProvider {
 }
 
 impl GeminiProvider {
-    fn serialise_chat(chat: &Chat) -> serde_json::Value {
-        let role = match chat.role {
-            ChatRole::Model => "model",
-            ChatRole::System => "system_instruction",
-            ChatRole::User => "user",
-        };
+    fn serialise_chat(chat: &ChatHistoryItem) -> serde_json::Value {
+        match chat {
+            ChatHistoryItem::Chat(chat) => {
+                let role = match chat.role {
+                    ChatRole::Model => "model",
+                    ChatRole::System => "system_instruction",
+                    ChatRole::User => "user",
+                };
 
-        json!({
-            "role": role,
-            "parts": [
-                {
-                    "text": chat.text
-                }
-            ]
-        })
+                json!({
+                    "role": role,
+                    "parts": [
+                        {
+                            "text": chat.text
+                        }
+                    ]
+                })
+            }
+            ChatHistoryItem::FileUpload(file) => {
+                let role = ChatRole::User;
+                json!({
+                    "role": role,
+                    "parts": [
+                        {
+                            "text": format!("## <{}> Contents below ##\n{}",file.relative_filepath, file.text)
+                        }
+                    ]
+                })
+            }
+        }
     }
 
     fn build_tools(&self) -> serde_json::Value {
