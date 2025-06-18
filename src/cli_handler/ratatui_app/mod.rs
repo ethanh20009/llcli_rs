@@ -3,11 +3,11 @@ use std::{collections::HashSet, io, rc::Rc};
 use ratatui::{
     DefaultTerminal, Frame,
     buffer::Buffer,
-    layout::{Constraint, Layout, Rect},
-    style::{Style, Stylize},
+    layout::{Constraint, Layout, Margin, Rect},
+    style::{Color, Style, Stylize},
     symbols::border,
-    text::{Line, Text},
-    widgets::{Block, Padding, Paragraph, Scrollbar, ScrollbarState, Widget},
+    text::{Line, Masked, Span, Text},
+    widgets::{Block, Borders, Padding, Paragraph, Scrollbar, ScrollbarState, Widget},
 };
 use termimad::crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use tui_textarea::{Input, TextArea};
@@ -68,7 +68,46 @@ impl<'a, 't> App<'a, 't> {
     }
 
     fn draw(&mut self, frame: &mut Frame) {
-        frame.render_widget(self, frame.area());
+        let s =
+            "Veeeeeeeeeeeeeeeery    loooooooooooooooooong   striiiiiiiiiiiiiiiiiiiiiiiiiing.   ";
+        let mut long_line = s.repeat(2);
+        long_line.push('\n');
+        let text = vec![
+            Line::from("This is a line "),
+            Line::from("This is a line   ".red()),
+            Line::from("This is a line".on_dark_gray()),
+            Line::from("This is a longer line".crossed_out()),
+            Line::from(long_line.clone()),
+            Line::from("This is a line".reset()),
+            Line::from(vec![
+                Span::raw("Masked text: "),
+                Span::styled(Masked::new("password", '*'), Style::new().fg(Color::Red)),
+            ]),
+            Line::from("This is a line "),
+            Line::from("This is a line   ".red()),
+            Line::from("This is a line".on_dark_gray()),
+            Line::from("This is a longer line".crossed_out()),
+            Line::from(long_line.clone()),
+            Line::from("This is a line".reset()),
+            Line::from(vec![
+                Span::raw("Masked text: "),
+                Span::styled(Masked::new("password", '*'), Style::new().fg(Color::Red)),
+            ]),
+        ];
+        let area = frame.area();
+        let layout = Layout::vertical(Constraint::from_ratios([(1, 4), (3, 4)])).split(area);
+        self.chat_hist_scroll_state = self.chat_hist_scroll_state.content_length(text.len());
+        frame.render_widget(self.chat_history_widget(text), layout[0]);
+        frame.render_stateful_widget(
+            Scrollbar::new(ratatui::widgets::ScrollbarOrientation::VerticalRight),
+            layout[0].inner(Margin {
+                horizontal: 1,
+                vertical: 1,
+            }),
+            &mut self.chat_hist_scroll_state,
+        );
+
+        self.draw_text_area_widget(frame, layout[1]);
     }
 
     fn handle_events(&mut self) -> io::Result<()> {
@@ -91,11 +130,33 @@ impl<'a, 't> App<'a, 't> {
             (KeyCode::Char('j'), KeyModifiers::CONTROL, _) => {
                 self.change_window(WindowDirection::Down)
             }
+
+            (KeyCode::Char('j'), _, SelectedZone::ChatHistory) => {
+                self.scroll_chat_history(WindowDirection::Down);
+            }
+            (KeyCode::Char('k'), _, SelectedZone::ChatHistory) => {
+                self.scroll_chat_history(WindowDirection::Up);
+            }
+
             (_, _, SelectedZone::TextInput) => {
                 self.textarea.input(key_event);
             }
             _ => {}
         }
+    }
+
+    fn scroll_chat_history(&mut self, directon: WindowDirection) {
+        match directon {
+            WindowDirection::Up => {
+                self.chat_hist_scroll_offset = self.chat_hist_scroll_offset.saturating_sub(1);
+            }
+            WindowDirection::Down => {
+                self.chat_hist_scroll_offset = self.chat_hist_scroll_offset.saturating_add(1);
+            }
+        };
+        self.chat_hist_scroll_state = self
+            .chat_hist_scroll_state
+            .position(self.chat_hist_scroll_offset as usize);
     }
 
     fn exit(&mut self) {
@@ -124,40 +185,30 @@ impl<'a, 't> App<'a, 't> {
     }
 }
 
-impl<'a, 't> Widget for &mut App<'a, 't> {
-    fn render(self, area: Rect, buf: &mut Buffer) {
-        let layout = Layout::vertical(Constraint::from_ratios([(3, 4), (1, 4)])).split(area);
-        self.render_chat_history(layout[0], buf);
-
-        self.render_text_area(layout[1], buf);
-    }
-}
-
 impl<'a, 't> App<'a, 't> {
-    fn render_chat_history(&self, area: Rect, buf: &mut Buffer) {
+    fn chat_history_widget(&self, text: Vec<Line<'a>>) -> Paragraph {
         let title = Line::from(" Counter App Tutorial ".bold());
         let instructions = Line::from(vec![" Quit ".into(), "<Esc> ".blue().bold()]);
         let block = Self::build_block(self.selected_zone == SelectedZone::ChatHistory)
             .title(title.centered())
             .title_bottom(instructions.centered());
 
-        let counter_text = Text::from(vec![Line::from(vec!["Value: ".into()])]);
-
-        Paragraph::new(counter_text)
+        Paragraph::new(text)
             .centered()
+            .scroll((self.chat_hist_scroll_offset, 0))
             .block(block)
-            .render(area, buf);
     }
 
-    fn render_text_area(&mut self, area: Rect, buf: &mut Buffer) {
+    fn draw_text_area_widget(&mut self, frame: &mut Frame, area: Rect) {
         let instructions = Line::from(vec![" Submit ".into(), "<C-S>".blue().bold()]);
         self.textarea.set_block(
             Self::build_block(self.selected_zone == SelectedZone::TextInput)
                 .title("Prompt")
                 .title_bottom(instructions),
         );
-        self.textarea.render(area, buf);
+        self.textarea.render(area, frame.buffer_mut());
     }
+
     fn build_block(selected: bool) -> Block<'t> {
         let border_set = if selected {
             border::THICK
