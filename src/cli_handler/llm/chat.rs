@@ -1,4 +1,8 @@
+use std::io::stdout;
+
 use anyhow::Context;
+use termimad::crossterm::cursor::SavePosition;
+use termimad::crossterm::queue;
 use tokio_stream::StreamExt;
 
 use super::{ChatAction, ChatCommand, Cli, output_file_added, output_response, output_seperator};
@@ -12,6 +16,8 @@ impl Cli {
         let mut llm_provider =
             Provider::new(&state.config, &state.api_key_manager, state.cli_handler);
         llm_provider.merge_tools(command.get_tools());
+
+        let mut stdout = stdout();
 
         match (command.message, &state.cli_handler) {
             (None, Some(handler)) => loop {
@@ -28,10 +34,11 @@ impl Cli {
                                 .await
                                 .context("Failed to retrieve response from the LLM Provider")?;
                             output_seperator(state);
+                            queue!(stdout, SavePosition)?;
                             while let Some(llm_response) = response.next().await {
                                 let response = llm_response?;
-                                output_response(response.as_str(), state);
                                 llm_response_acc.push_str(&response);
+                                output_response(llm_response_acc.as_str(), state, &mut stdout)?;
                             }
                             output_seperator(state);
                         }
@@ -60,7 +67,7 @@ impl Cli {
                     .await
                     .context("Failed to retrieve response from the LLM Provider")?;
 
-                output_response(response.as_str(), state);
+                output_response(response.as_str(), state, &mut stdout)?;
 
                 Ok(())
             }

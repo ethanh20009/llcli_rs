@@ -1,4 +1,7 @@
+use std::io::stdout;
+
 use anyhow::Context;
+use termimad::crossterm::{cursor::SavePosition, queue};
 use tokio_stream::StreamExt;
 
 use crate::provider::{Chat, Provider};
@@ -18,6 +21,8 @@ impl Cli {
             text: "The user is issuing a code generation command. You must only respond with the code you have generated.".to_string()
         })?;
 
+        let mut stdout = stdout();
+
         match (command.message, &state.cli_handler) {
             (None, Some(handler)) => loop {
                 let prompt = handler
@@ -26,13 +31,14 @@ impl Cli {
 
                 match prompt {
                     ChatAction::Text(text) => {
+                        queue!(stdout, SavePosition)?;
                         let mut response = llm_provider
                             .complete_chat_stream(text)
                             .await
                             .context("Failed to retrieve response from the LLM Provider")?;
 
                         while let Some(llm_response) = response.next().await {
-                            output_response(llm_response?.as_str(), state);
+                            output_response(llm_response?.as_str(), state, &mut stdout)?;
                         }
                     }
                     ChatAction::AddFile { path } => {
@@ -61,7 +67,7 @@ impl Cli {
                     response = parse_code_response(&response);
                 }
 
-                output_response(response.as_str(), state);
+                output_response(response.as_str(), state, &mut stdout);
 
                 Ok(())
             }

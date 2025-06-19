@@ -1,7 +1,12 @@
 mod chat;
 mod code;
 
+use std::io::{Stdout, Write};
+
+use anyhow::Context;
 use termimad::MadSkin;
+use termimad::crossterm::cursor::RestorePosition;
+use termimad::crossterm::queue;
 
 use super::file_input::FILE_INPUT_TRIGGER;
 use super::{ChatCommand, Cli, CliHandler};
@@ -46,12 +51,21 @@ fn output_seperator(state: &CommandState) {
     }
 }
 
-fn output_response(response: &str, state: &CommandState) {
+fn output_response(
+    response: &str,
+    state: &CommandState,
+    stdout: &mut Stdout,
+) -> anyhow::Result<()> {
     if state.quiet {
         print!("{}", response);
+        Ok(())
     } else {
         let skin = MadSkin::default();
-        skin.print_text(response)
+        queue!(stdout, RestorePosition);
+        skin.write_text_on(stdout, response)
+            .context("Failed to write md to stdout.")?;
+        stdout.flush();
+        Ok(())
     }
 }
 
