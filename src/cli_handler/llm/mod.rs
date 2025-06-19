@@ -39,12 +39,19 @@ impl CliHandler {
     }
 }
 
+fn output_seperator(state: &CommandState) {
+    if !state.quiet {
+        let skin = MadSkin::default();
+        skin.print_text(&format!("---\n"));
+    }
+}
+
 fn output_response(response: &str, state: &CommandState) {
     if state.quiet {
         print!("{}", response);
     } else {
         let skin = MadSkin::default();
-        skin.print_text(format!("---\n{}\n---", response).as_str());
+        skin.print_text(response)
     }
 }
 

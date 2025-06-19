@@ -1,4 +1,5 @@
 use anyhow::Context;
+use tokio_stream::StreamExt;
 
 use crate::provider::{Chat, Provider};
 
@@ -25,12 +26,14 @@ impl Cli {
 
                 match prompt {
                     ChatAction::Text(text) => {
-                        let response = llm_provider
-                            .complete_chat(text)
+                        let mut response = llm_provider
+                            .complete_chat_stream(text)
                             .await
                             .context("Failed to retrieve response from the LLM Provider")?;
 
-                        output_response(response.as_str(), state);
+                        while let Some(llm_response) = response.next().await {
+                            output_response(llm_response?.as_str(), state);
+                        }
                     }
                     ChatAction::AddFile { path } => {
                         llm_provider.add_chat_to_context(

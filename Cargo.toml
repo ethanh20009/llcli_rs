@@ -5,8 +5,10 @@ edition = "2024"
 
 [dependencies]
 tokio = { version = "1.44.2", features = ["macros", "rt-multi-thread"] }
+tokio-stream = { version = "0.1.17" }
 config = { version = "0.15.11" }
-reqwest = { version = "0.12.15", features = ["json"] }
+reqwest = { version = "0.12.15", features = ["json", "stream"] }
+futures-util = { version = "0.3.31" }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = { version = "1.0.140" }
 dirs = { version = "6.0.0" }
@@ -22,6 +24,7 @@ inquire = { version = "0.7.5", features = ["macros"] }
 derive_more = { version = "2.0.1", features = ["from"] }
 termimad = { version = "0.31.3" }
 glob = { version = "0.3.2" }
+eventsource-stream = { version = "0.2.3" }
 
 [profile.release]
 strip = "debuginfo"

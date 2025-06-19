@@ -1,6 +1,7 @@
 use anyhow::Context;
+use tokio_stream::StreamExt;
 
-use super::{ChatAction, ChatCommand, Cli, output_file_added, output_response};
+use super::{ChatAction, ChatCommand, Cli, output_file_added, output_response, output_seperator};
 use super::{CommandState, Provider};
 
 impl Cli {
@@ -20,12 +21,21 @@ impl Cli {
 
                 match prompt {
                     ChatAction::Text(text) => {
-                        let response = llm_provider
-                            .complete_chat(text)
-                            .await
-                            .context("Failed to retrieve response from the LLM Provider")?;
-
-                        output_response(response.as_str(), state);
+                        let mut llm_response_acc = String::new();
+                        {
+                            let mut response = llm_provider
+                                .complete_chat_stream(text.clone())
+                                .await
+                                .context("Failed to retrieve response from the LLM Provider")?;
+                            output_seperator(state);
+                            while let Some(llm_response) = response.next().await {
+                                let response = llm_response?;
+                                output_response(response.as_str(), state);
+                                llm_response_acc.push_str(&response);
+                            }
+                            output_seperator(state);
+                        }
+                        llm_provider.update_memory(text, llm_response_acc)?;
                     }
                     ChatAction::AddFile { path } => {
                         llm_provider.add_chat_to_context(

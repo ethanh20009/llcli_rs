@@ -4,6 +4,8 @@ mod gemini;
 
 use anyhow::Context;
 pub use api_key_manager::APIKeyManager;
+use eventsource_stream::Eventsource;
+use futures_util::{Stream, TryStreamExt};
 use gemini::GeminiProvider;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -11,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use crate::configuration::Configuration;
 use crate::{cli_handler::CliHandler, configuration::OnlineProviderOpts};
 use error::{Error, Result};
+use tokio_stream::StreamExt;
 
 struct OnlineProvider {
     api_key: String,
@@ -56,27 +59,56 @@ trait ProviderImpl {
 
 trait OnlineProviderImpl: ProviderImpl {
     type ProviderApiResponse: DeserializeOwned;
+    type ProviderApiStreamResponse: DeserializeOwned;
 
     fn build_chat_url(&self) -> anyhow::Result<reqwest::Url>;
+    fn build_chat_stream_url(&self) -> anyhow::Result<reqwest::Url>;
     fn build_chat_body(&self, prompt: impl Into<String>) -> serde_json::Value;
     fn get_http_client(&self) -> &reqwest::Client;
     fn decode_llm_response(&self, response: Self::ProviderApiResponse) -> anyhow::Result<String>;
+    fn decode_llm_stream_response(
+        &self,
+        response: Self::ProviderApiStreamResponse,
+    ) -> anyhow::Result<String>;
+
+    async fn complete_chat_stream(
+        &mut self,
+        prompt: String,
+    ) -> anyhow::Result<impl Stream<Item = anyhow::Result<String>>> {
+        let stream = self
+            .get_http_client()
+            .post(self.build_chat_stream_url()?)
+            .json(&self.build_chat_body(prompt))
+            .send()
+            .await
+            .context("Request failed to LLM Provider.")?
+            .bytes_stream()
+            .eventsource()
+            .map(|bytes| {
+                let event = bytes.context("Failed to create bytes stream.")?;
+                let data = event.data;
+                let value = serde_json::from_str::<Self::ProviderApiStreamResponse>(&data)
+                    .context("Failed to decode llm response")?;
+                self.decode_llm_stream_response(value)
+            });
+
+        Ok(stream)
+    }
 
     async fn complete_chat(&mut self, prompt: String) -> anyhow::Result<String> {
-        let response = self
+        let result = self
             .get_http_client()
             .post(self.build_chat_url()?)
-            .json(&self.build_chat_body(prompt.clone()))
+            .json(&self.build_chat_body(prompt))
             .send()
             .await
             .context("Request failed to LLM Provider.")?
             .json::<Self::ProviderApiResponse>()
             .await
-            .context("Failed to decode LLM response into JSON")?;
-        let decoded = self.decode_llm_response(response)?;
-        self.update_memory(prompt, decoded.clone())
-            .context("Failed to update memory.")?;
-        Ok(decoded)
+            .context("Failed to deserialise response.")
+            .map(|response| self.decode_llm_response(response))??;
+
+        Ok(result)
     }
 }
 
@@ -88,6 +120,15 @@ pub enum Provider {
 const GEMINI_PROVIDER: &'static str = "gemini";
 
 impl Provider {
+    pub async fn complete_chat_stream(
+        &mut self,
+        prompt: String,
+    ) -> anyhow::Result<impl Stream<Item = anyhow::Result<String>>> {
+        match self {
+            Self::Gemini(prov) => prov.complete_chat_stream(prompt).await,
+        }
+    }
+
     pub async fn complete_chat(&mut self, prompt: String) -> anyhow::Result<String> {
         match self {
             Self::Gemini(prov) => prov.complete_chat(prompt).await,
@@ -123,6 +164,12 @@ impl Provider {
     pub fn clear_history(&mut self) -> anyhow::Result<()> {
         match self {
             Self::Gemini(provider) => provider.clear_memory(),
+        }
+    }
+
+    pub fn update_memory(&mut self, prompt: String, response: String) -> anyhow::Result<()> {
+        match self {
+            Self::Gemini(provider) => provider.update_memory(prompt, response),
         }
     }
 }

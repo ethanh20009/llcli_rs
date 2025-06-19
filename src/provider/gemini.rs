@@ -62,6 +62,7 @@ impl ProviderImpl for GeminiProvider {
 
 impl OnlineProviderImpl for GeminiProvider {
     type ProviderApiResponse = GeminiApiResponse;
+    type ProviderApiStreamResponse = GeminiApiResponse;
     fn build_chat_url(&self) -> anyhow::Result<Url> {
         let mut url = reqwest::Url::parse(&self.provider.url)
             .context("Failed to parse provider url")?
@@ -73,6 +74,22 @@ impl OnlineProviderImpl for GeminiProvider {
         url = Url::parse(&(url.to_string() + ":generateContent"))
             .context("Failed to append chat generation type")?;
         url.set_query(Some(format!("key={}", &self.provider.api_key).as_str()));
+        Ok(url)
+    }
+
+    fn build_chat_stream_url(&self) -> anyhow::Result<reqwest::Url> {
+        let mut url = reqwest::Url::parse(&self.provider.url)
+            .context("Failed to parse provider url")?
+            .join("v1beta/models/")
+            .context("Failed to build gemini url.")?
+            .join(&self.provider.model)
+            .context("Failed to build gemini model url")?;
+
+        url = Url::parse(&(url.to_string() + ":streamGenerateContent"))
+            .context("Failed to append chat generation type")?;
+        url.set_query(Some(
+            format!("key={}&alt=sse", &self.provider.api_key).as_str(),
+        ));
         Ok(url)
     }
 
@@ -124,6 +141,13 @@ impl OnlineProviderImpl for GeminiProvider {
             .text
             .clone();
         Ok(text)
+    }
+
+    fn decode_llm_stream_response(
+        &self,
+        response: Self::ProviderApiStreamResponse,
+    ) -> anyhow::Result<String> {
+        self.decode_llm_response(response)
     }
 }
 
