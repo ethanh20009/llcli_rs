@@ -200,3 +200,13 @@ impl ChatData {
         }
     }
 }
+
+impl ChatRole {
+    pub fn display(&self) -> &'static str {
+        match self {
+            Self::User => "User",
+            Self::Model => "LLM",
+            Self::System => "System Instructions",
+        }
+    }
+}

@@ -1,3 +1,4 @@
+use ratatui::prelude::StatefulWidget;
 use std::{collections::HashSet, io, rc::Rc};
 
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
@@ -5,7 +6,7 @@ use event_handler::{Event, EventHandler, LlmResponse};
 use ratatui::{
     DefaultTerminal, Frame,
     buffer::Buffer,
-    layout::{Constraint, Layout, Margin, Rect},
+    layout::{Constraint, Layout, Margin, Rect, Size},
     style::{Color, Style, Stylize},
     symbols::border,
     text::{Line, Masked, Span, Text},
@@ -13,6 +14,7 @@ use ratatui::{
         Block, Borders, List, ListItem, Padding, Paragraph, Scrollbar, ScrollbarState, Widget,
     },
 };
+use tui_scrollview::{ScrollView, ScrollViewState};
 use tui_textarea::TextArea;
 
 use crate::provider::{ChatData, ChatHistoryItem, ChatRole, Provider};
@@ -23,9 +25,7 @@ mod event_handler;
 pub struct App<'a, 't> {
     provider: &'a mut Provider,
     event_handler: event_handler::EventHandler,
-    chat_hist_scroll_offset: u16,
-    chat_hist_scroll_state: ScrollbarState,
-    chat_hist_scroll_length: usize,
+    scrollview_state: ScrollViewState,
     textarea: TextArea<'t>,
     exit: bool,
     selected_zone: SelectedZone,
@@ -50,9 +50,7 @@ impl<'a, 't> App<'a, 't> {
             exit: false,
             textarea: Self::create_chat_input(),
             selected_zone: SelectedZone::TextInput,
-            chat_hist_scroll_offset: 0,
-            chat_hist_scroll_state: ScrollbarState::default(),
-            chat_hist_scroll_length: Default::default(),
+            scrollview_state: ScrollViewState::default(),
         }
     }
 
@@ -81,24 +79,47 @@ impl<'a, 't> App<'a, 't> {
         let area = frame.area();
         let layout = Layout::vertical(Constraint::from_ratios([(3, 4), (1, 4)])).split(area);
 
-        let history = self.provider.get_history();
-        let bubbles: Vec<ListItem> = Self::build_chat_history_bubbles(history);
-        self.chat_hist_scroll_length = bubbles.len();
-        self.chat_hist_scroll_state = self
-            .chat_hist_scroll_state
-            .content_length(self.chat_hist_scroll_length);
-
-        frame.render_widget(self.chat_history_widget(bubbles), layout[0]);
-        frame.render_stateful_widget(
-            Scrollbar::new(ratatui::widgets::ScrollbarOrientation::VerticalRight),
-            layout[0].inner(Margin {
-                horizontal: 1,
-                vertical: 1,
-            }),
-            &mut self.chat_hist_scroll_state,
-        );
+        let mut scrollview = tui_scrollview::ScrollView::new(Size::new(
+            layout[0].width,
+            self.count_total_height(layout[0].width),
+        ))
+        .horizontal_scrollbar_visibility(tui_scrollview::ScrollbarVisibility::Never);
+        self.render_widgets_into_scrollview(scrollview.buf_mut());
+        scrollview.render(layout[0], frame.buffer_mut(), &mut self.scrollview_state);
 
         self.draw_text_area_widget(frame, layout[1]);
+    }
+
+    fn count_total_height(&self, term_width: u16) -> u16 {
+        self.provider
+            .get_history()
+            .iter()
+            .map(|item| match item {
+                ChatHistoryItem::FileUpload(_) => 3,
+                ChatHistoryItem::Chat(chat) => {
+                    Self::count_wrapped_lines(&chat.text, term_width) + 2
+                }
+            })
+            .reduce(|acc, item| acc + item)
+            .unwrap_or(0)
+    }
+
+    fn count_wrapped_lines(text: &str, width: u16) -> u16 {
+        let mut line_count = 0;
+        for line in text.lines() {
+            let mut current_line_length = 0;
+            for word in line.split_whitespace() {
+                let word_len = word.len() as u16;
+                if current_line_length + word_len + 1 > width {
+                    line_count += 1;
+                    current_line_length = word_len;
+                } else {
+                    current_line_length += word_len + 1;
+                }
+            }
+            line_count += 1; // For the current line
+        }
+        line_count
     }
 
     fn handle_event(&mut self, event: Event) -> anyhow::Result<()> {
@@ -157,18 +178,12 @@ impl<'a, 't> App<'a, 't> {
     fn scroll_chat_history(&mut self, directon: WindowDirection) {
         match directon {
             WindowDirection::Up => {
-                self.chat_hist_scroll_offset = self.chat_hist_scroll_offset.saturating_sub(1).max(0)
+                self.scrollview_state.scroll_up();
             }
             WindowDirection::Down => {
-                self.chat_hist_scroll_offset = self
-                    .chat_hist_scroll_offset
-                    .saturating_add(1)
-                    .min(self.chat_hist_scroll_length as u16)
+                self.scrollview_state.scroll_down();
             }
         };
-        self.chat_hist_scroll_state = self
-            .chat_hist_scroll_state
-            .position(self.chat_hist_scroll_offset as usize);
     }
 
     fn exit(&mut self) {
@@ -198,16 +213,6 @@ impl<'a, 't> App<'a, 't> {
 }
 
 impl<'a, 't> App<'a, 't> {
-    fn chat_history_widget(&self, bubbles: Vec<ListItem<'a>>) -> List {
-        let title = Line::from(" Chat History ".bold());
-        let instructions = Line::from(vec![" Quit ".into(), "<Esc> ".blue().bold()]);
-        let block = Self::build_block(self.selected_zone == SelectedZone::ChatHistory)
-            .title(title.centered())
-            .title_bottom(instructions.centered());
-
-        List::new(bubbles).block(block)
-    }
-
     fn draw_text_area_widget(&mut self, frame: &mut Frame, area: Rect) {
         let instructions = Line::from(vec![" Submit ".into(), "<C-S>".blue().bold()]);
         self.textarea.set_block(
@@ -237,34 +242,30 @@ impl<'a, 't> App<'a, 't> {
             .padding(Padding::proportional(1))
     }
 
-    fn build_chat_history_bubbles<'b>(history: &'b Vec<ChatHistoryItem>) -> Vec<ListItem<'b>> {
-        history
-            .iter()
-            .filter(|chat| {
-                if let ChatHistoryItem::Chat(data) = chat {
-                    if data.role == ChatRole::System {
-                        return false;
-                    }
-                }
-                true
-            })
-            .map(|chat| match chat {
-                ChatHistoryItem::FileUpload(file) => ListItem::new(file.relative_filepath.clone()),
-                ChatHistoryItem::Chat(chat) => {
-                    let sender = match chat.role {
-                        ChatRole::User => "User".to_owned(),
-                        ChatRole::Model => "LLM".to_owned(),
-                        ChatRole::System => "".to_owned(),
-                    };
-                    let mut text = Text::from(vec![Line::from(sender.clone())]);
+    fn render_widgets_into_scrollview(&self, buf: &mut Buffer) {
+        let area = buf.area;
+        let constraints = self.provider.get_history().iter().map(|chat| match chat {
+            ChatHistoryItem::Chat(chat) => {
+                Self::count_wrapped_lines(&chat.text, buf.area.width) + 2
+            }
+            ChatHistoryItem::FileUpload(_) => 3,
+        });
+        let layouts = Layout::vertical(constraints).split(area);
 
-                    chat.text
-                        .lines()
-                        .map(|line| Line::from(line))
-                        .for_each(|line| text.push_line(line));
-                    ListItem::new(text)
-                }
-            })
-            .collect()
+        for (index, chat) in self.provider.get_history().iter().enumerate() {
+            self.bubble(chat).render(layouts[index], buf);
+        }
+    }
+
+    fn bubble(&self, chat: &ChatHistoryItem) -> impl Widget {
+        let block = Block::bordered();
+        match chat {
+            ChatHistoryItem::Chat(message) => {
+                Paragraph::new(message.text.clone()).block(block.title(message.role.display()))
+            }
+            ChatHistoryItem::FileUpload(file) => {
+                Paragraph::new(file.relative_filepath.clone()).block(block.title("File upload"))
+            }
+        }
     }
 }
