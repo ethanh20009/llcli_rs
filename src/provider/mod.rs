@@ -184,3 +184,19 @@ pub(crate) enum ChatHistoryItem {
     FileUpload(FileUploadData),
     Chat(ChatData),
 }
+
+impl ChatData {
+    pub fn user(text: String) -> Self {
+        Self {
+            role: ChatRole::User,
+            text,
+        }
+    }
+
+    pub fn model(text: String) -> Self {
+        Self {
+            role: ChatRole::Model,
+            text,
+        }
+    }
+}

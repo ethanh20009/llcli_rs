@@ -1,5 +1,7 @@
 use std::{collections::HashSet, io, rc::Rc};
 
+use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+use event_handler::{Event, EventHandler, LlmResponse};
 use ratatui::{
     DefaultTerminal, Frame,
     buffer::Buffer,
@@ -11,14 +13,16 @@ use ratatui::{
         Block, Borders, List, ListItem, Padding, Paragraph, Scrollbar, ScrollbarState, Widget,
     },
 };
-use termimad::crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
-use tui_textarea::{Input, TextArea};
+use tui_textarea::TextArea;
 
-use crate::provider::{ChatHistoryItem, ChatRole, Provider};
+use crate::provider::{ChatData, ChatHistoryItem, ChatRole, Provider};
+
+mod event_handler;
 
 #[derive(Debug)]
 pub struct App<'a, 't> {
     provider: &'a mut Provider,
+    event_handler: event_handler::EventHandler,
     chat_hist_scroll_offset: u16,
     chat_hist_scroll_state: ScrollbarState,
     chat_hist_scroll_length: usize,
@@ -42,6 +46,7 @@ impl<'a, 't> App<'a, 't> {
     pub fn new(provider: &'a mut Provider) -> Self {
         Self {
             provider,
+            event_handler: EventHandler::new(),
             exit: false,
             textarea: Self::create_chat_input(),
             selected_zone: SelectedZone::TextInput,
@@ -63,10 +68,11 @@ impl<'a, 't> App<'a, 't> {
         textarea
     }
 
-    pub fn run(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
+    pub async fn run(&mut self, terminal: &mut DefaultTerminal) -> anyhow::Result<()> {
         while !self.exit {
+            let event = self.event_handler.next().await?;
+            self.handle_event(event)?;
             terminal.draw(|frame| self.draw(frame))?;
-            self.handle_events()?;
         }
         Ok(())
     }
@@ -95,17 +101,22 @@ impl<'a, 't> App<'a, 't> {
         self.draw_text_area_widget(frame, layout[1]);
     }
 
-    fn handle_events(&mut self) -> io::Result<()> {
-        match termimad::crossterm::event::read()? {
-            Event::Key(key_event) if key_event.kind == KeyEventKind::Press => {
-                self.handle_key_event(key_event)
+    fn handle_event(&mut self, event: Event) -> anyhow::Result<()> {
+        match event {
+            Event::Key(key_event) => {
+                if key_event.kind == crossterm::event::KeyEventKind::Press {
+                    self.handle_key_event(key_event)?;
+                }
             }
+            Event::LlmResponse(LlmResponse::Chunk(chunk)) => self
+                .provider
+                .add_chat_to_context(ChatHistoryItem::Chat(ChatData::user(chunk)))?,
             _ => {}
-        };
+        }
         Ok(())
     }
 
-    fn handle_key_event(&mut self, key_event: KeyEvent) {
+    fn handle_key_event(&mut self, key_event: crossterm::event::KeyEvent) -> anyhow::Result<()> {
         // Global
         match (key_event.code, key_event.modifiers, self.selected_zone) {
             (KeyCode::Esc, _, _) => self.exit(),
@@ -122,12 +133,25 @@ impl<'a, 't> App<'a, 't> {
             (KeyCode::Char('k'), _, SelectedZone::ChatHistory) => {
                 self.scroll_chat_history(WindowDirection::Up);
             }
+            (KeyCode::Char('s'), KeyModifiers::CONTROL, SelectedZone::TextInput) => {
+                self.submit_prompt()?;
+            }
 
             (_, _, SelectedZone::TextInput) => {
                 self.textarea.input(key_event);
             }
             _ => {}
-        }
+        };
+        Ok(())
+    }
+
+    fn submit_prompt(&mut self) -> anyhow::Result<()> {
+        self.event_handler
+            .send_llm_response(event_handler::LlmResponse::Chunk(
+                self.textarea.lines().join("\n"),
+            ))?;
+        self.textarea = TextArea::default();
+        Ok(())
     }
 
     fn scroll_chat_history(&mut self, directon: WindowDirection) {

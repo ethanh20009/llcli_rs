@@ -18,7 +18,7 @@ impl Cli {
             (None, Some(handler)) => {
                 let mut app = App::new(&mut llm_provider);
                 let mut terminal = ratatui::init();
-                let app_result = app.run(&mut terminal);
+                let app_result = app.run(&mut terminal).await;
                 ratatui::restore();
                 app_result.context("Ratatui Terminal Error.")
             }
