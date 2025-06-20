@@ -25,6 +25,9 @@ derive_more = { version = "2.0.1", features = ["from"] }
 termimad = { version = "0.31.3" }
 glob = { version = "0.3.2" }
 eventsource-stream = { version = "0.2.3" }
+bat = { version = "0.25.0" }
+regex = { version = "1.11.1" }
+crossterm = { version = "0.29.0" }
 
 [profile.release]
 strip = "debuginfo"

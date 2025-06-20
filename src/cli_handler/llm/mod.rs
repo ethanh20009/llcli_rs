@@ -4,9 +4,12 @@ mod code;
 use std::io::{Stdout, Write};
 
 use anyhow::Context;
+use crossterm::cursor::{RestorePosition, SavePosition};
+use crossterm::queue;
+use crossterm::style::Print;
+use crossterm::terminal::{Clear, ClearType};
+use regex::Regex;
 use termimad::MadSkin;
-use termimad::crossterm::cursor::RestorePosition;
-use termimad::crossterm::queue;
 
 use super::file_input::FILE_INPUT_TRIGGER;
 use super::{ChatCommand, Cli, CliHandler};
@@ -60,11 +63,10 @@ fn output_response(
         print!("{}", response);
         Ok(())
     } else {
-        let skin = MadSkin::default();
-        queue!(stdout, RestorePosition);
-        skin.write_text_on(stdout, response)
-            .context("Failed to write md to stdout.")?;
-        stdout.flush();
+        let skin = termimad::MadSkin::default();
+        queue!(stdout, Print(response))?;
+        stdout.flush()?;
+
         Ok(())
     }
 }

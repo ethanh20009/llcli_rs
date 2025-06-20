@@ -1,8 +1,8 @@
-use std::io::stdout;
+use std::io::{Write, stdout};
 
 use anyhow::Context;
-use termimad::crossterm::cursor::SavePosition;
-use termimad::crossterm::queue;
+use crossterm::cursor::{MoveTo, RestorePosition, SavePosition};
+use crossterm::queue;
 use tokio_stream::StreamExt;
 
 use super::{ChatAction, ChatCommand, Cli, output_file_added, output_response, output_seperator};
@@ -34,12 +34,16 @@ impl Cli {
                                 .await
                                 .context("Failed to retrieve response from the LLM Provider")?;
                             output_seperator(state);
-                            queue!(stdout, SavePosition)?;
+                            let (pos_a, pos_b) = crossterm::cursor::position()?;
+
                             while let Some(llm_response) = response.next().await {
+                                let new_pos = crossterm::cursor::position();
+                                queue!(stdout, MoveTo(pos_a, pos_b))?;
                                 let response = llm_response?;
                                 llm_response_acc.push_str(&response);
                                 output_response(llm_response_acc.as_str(), state, &mut stdout)?;
                             }
+                            stdout.flush()?;
                             output_seperator(state);
                         }
                         llm_provider.update_memory(text, llm_response_acc)?;
