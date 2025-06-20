@@ -259,9 +259,11 @@ impl<'a, 't> App<'a, 't> {
 
     fn bubble(&self, chat: &ChatHistoryItem) -> impl Widget {
         let block = Block::bordered();
+
         match chat {
             ChatHistoryItem::Chat(message) => {
-                Paragraph::new(message.text.clone()).block(block.title(message.role.display()))
+                let text = tui_markdown::from_str(&message.text);
+                Paragraph::new(text).block(block.title(message.role.display()))
             }
             ChatHistoryItem::FileUpload(file) => {
                 Paragraph::new(file.relative_filepath.clone()).block(block.title("File upload"))

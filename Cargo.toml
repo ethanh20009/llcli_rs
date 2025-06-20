@@ -27,6 +27,7 @@ crossterm = { version = "0.28.1", features = ["event-stream"] }
 tui-textarea = { version = "0.7.0" }
 futures-util = { version = "0.3.31" }
 tui-scrollview = { version = "0.5.1" }
+tui-markdown = { version = "0.3.5" }
 
 [profile.release]
 strip = "debuginfo"
