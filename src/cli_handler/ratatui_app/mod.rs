@@ -29,6 +29,7 @@ pub struct App<'a, 't> {
     textarea: TextArea<'t>,
     exit: bool,
     selected_zone: SelectedZone,
+    generating: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -51,6 +52,7 @@ impl<'a, 't> App<'a, 't> {
             textarea: Self::create_chat_input(),
             selected_zone: SelectedZone::TextInput,
             scrollview_state: ScrollViewState::default(),
+            generating: false,
         }
     }
 
@@ -132,6 +134,9 @@ impl<'a, 't> App<'a, 't> {
             Event::LlmResponse(LlmResponse::Chunk(chunk)) => self
                 .provider
                 .add_chat_to_context(ChatHistoryItem::Chat(ChatData::user(chunk)))?,
+            Event::LlmResponse(LlmResponse::Finished) => {
+                self.generating = false;
+            }
             _ => {}
         }
         Ok(())
@@ -159,7 +164,9 @@ impl<'a, 't> App<'a, 't> {
             }
 
             (_, _, SelectedZone::TextInput) => {
-                self.textarea.input(key_event);
+                if !self.generating {
+                    self.textarea.input(key_event);
+                }
             }
             _ => {}
         };
@@ -172,6 +179,7 @@ impl<'a, 't> App<'a, 't> {
                 self.textarea.lines().join("\n"),
             ))?;
         self.textarea = TextArea::default();
+        self.generating = true;
         Ok(())
     }
 
