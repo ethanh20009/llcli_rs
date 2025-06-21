@@ -1,5 +1,5 @@
 use futures_util::StreamExt;
-use ratatui::{prelude::StatefulWidget, widgets::Wrap};
+use ratatui::{layout::Margin, prelude::StatefulWidget, widgets::Wrap};
 
 use crossterm::event::{KeyCode, KeyModifiers};
 use event_handler::{Event, EventHandler, LlmResponse};
@@ -81,13 +81,19 @@ impl<'a, 't> App<'a, 't> {
         let area = frame.area();
         let layout = Layout::vertical(Constraint::from_ratios([(3, 4), (1, 4)])).split(area);
 
+        let scrollview_area = layout[0].inner(Margin::new(1, 1));
         let mut scrollview = tui_scrollview::ScrollView::new(Size::new(
-            layout[0].width,
-            self.count_total_height(layout[0].width),
+            scrollview_area.width,
+            self.count_total_height(scrollview_area.width),
         ))
         .horizontal_scrollbar_visibility(tui_scrollview::ScrollbarVisibility::Never);
         self.render_widgets_into_scrollview(scrollview.buf_mut());
-        scrollview.render(layout[0], frame.buffer_mut(), &mut self.scrollview_state);
+
+        let buf = frame.buffer_mut();
+
+        let scrollview_selected = self.selected_zone == SelectedZone::ChatHistory;
+        Self::build_block(scrollview_selected).render(layout[0], buf);
+        scrollview.render(scrollview_area, buf, &mut self.scrollview_state);
 
         self.draw_text_area_widget(frame, layout[1]);
     }
