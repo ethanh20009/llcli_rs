@@ -12,7 +12,7 @@ use super::{
     OnlineProviderImpl, ProviderImpl,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct GeminiProvider {
     provider: OnlineProvider,
     http_client: reqwest::Client,
@@ -49,17 +49,32 @@ impl ProviderImpl for GeminiProvider {
     }
 
     /// Used when providing model context.
-    fn add_chat_to_context(&mut self, chat: ChatHistoryItem) -> anyhow::Result<()> {
+    fn add_chat_to_context(&mut self, chat: ChatHistoryItem) -> anyhow::Result<Option<usize>> {
         match chat {
             ChatHistoryItem::Chat(ChatData {
                 role: ChatRole::System,
                 text,
             }) => {
                 self.system_prompt = Some(text);
-                Ok(())
+                Ok(None)
             }
-            _ => Ok(self.memory.push(chat)),
+            _ => {
+                self.memory.push(chat);
+                Ok(Some(self.memory.len() - 1))
+            }
         }
+    }
+
+    fn append_chat_in_context(&mut self, index: usize, text: &str) -> anyhow::Result<()> {
+        let existing = self
+            .memory
+            .get_mut(index)
+            .context(format!("Failed to get chat at index {}", index))?;
+        match existing {
+            ChatHistoryItem::FileUpload(file) => {}
+            ChatHistoryItem::Chat(chat) => chat.text.push_str(text),
+        }
+        Ok(())
     }
 
     fn clear_memory(&mut self) -> anyhow::Result<()> {
@@ -73,6 +88,8 @@ impl ProviderImpl for GeminiProvider {
 
 impl OnlineProviderImpl for GeminiProvider {
     type ProviderApiResponse = GeminiApiResponse;
+    type ProviderApiStreamResponse = GeminiApiResponse;
+
     fn build_chat_url(&self) -> anyhow::Result<Url> {
         let mut url = reqwest::Url::parse(&self.provider.url)
             .context("Failed to parse provider url")?
@@ -84,6 +101,22 @@ impl OnlineProviderImpl for GeminiProvider {
         url = Url::parse(&(url.to_string() + ":generateContent"))
             .context("Failed to append chat generation type")?;
         url.set_query(Some(format!("key={}", &self.provider.api_key).as_str()));
+        Ok(url)
+    }
+
+    fn build_chat_stream_url(&self) -> anyhow::Result<reqwest::Url> {
+        let mut url = reqwest::Url::parse(&self.provider.url)
+            .context("Failed to parse provider url")?
+            .join("v1beta/models/")
+            .context("Failed to build gemini url.")?
+            .join(&self.provider.model)
+            .context("Failed to build gemini model url")?;
+
+        url = Url::parse(&(url.to_string() + ":streamGenerateContent"))
+            .context("Failed to append chat generation type")?;
+        url.set_query(Some(
+            format!("key={}&alt=sse", &self.provider.api_key).as_str(),
+        ));
         Ok(url)
     }
 
@@ -142,6 +175,13 @@ impl OnlineProviderImpl for GeminiProvider {
             .text
             .clone();
         Ok(text)
+    }
+
+    fn decode_llm_stream_response(
+        &self,
+        response: Self::ProviderApiStreamResponse,
+    ) -> anyhow::Result<String> {
+        self.decode_llm_response(response)
     }
 }
 

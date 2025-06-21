@@ -6,7 +6,7 @@ edition = "2024"
 [dependencies]
 tokio = { version = "1.44.2", features = ["macros", "rt-multi-thread"] }
 config = { version = "0.15.11" }
-reqwest = { version = "0.12.15", features = ["json"] }
+reqwest = { version = "0.12.15", features = ["json", "stream"] }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = { version = "1.0.140" }
 dirs = { version = "6.0.0" }
@@ -28,6 +28,6 @@ tui-textarea = { version = "0.7.0" }
 futures-util = { version = "0.3.31" }
 tui-scrollview = { version = "0.5.1" }
 tui-markdown = { version = "0.3.5" }
-
+eventsource-stream = { version = "0.2.3" }
 [profile.release]
 strip = "debuginfo"

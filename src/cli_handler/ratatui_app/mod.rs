@@ -1,29 +1,28 @@
-use ratatui::prelude::StatefulWidget;
-use std::{collections::HashSet, io, rc::Rc};
+use futures_util::StreamExt;
+use ratatui::{prelude::StatefulWidget, widgets::Wrap};
 
-use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+use crossterm::event::{KeyCode, KeyModifiers};
 use event_handler::{Event, EventHandler, LlmResponse};
 use ratatui::{
     DefaultTerminal, Frame,
     buffer::Buffer,
-    layout::{Constraint, Layout, Margin, Rect, Size},
-    style::{Color, Style, Stylize},
+    layout::{Constraint, Layout, Rect, Size},
+    style::{Style, Stylize},
     symbols::border,
-    text::{Line, Masked, Span, Text},
-    widgets::{
-        Block, Borders, List, ListItem, Padding, Paragraph, Scrollbar, ScrollbarState, Widget,
-    },
+    text::Line,
+    widgets::{Block, Padding, Paragraph, Widget},
 };
-use tui_scrollview::{ScrollView, ScrollViewState};
+use tui_scrollview::ScrollViewState;
 use tui_textarea::TextArea;
 
-use crate::provider::{ChatData, ChatHistoryItem, ChatRole, Provider};
+use crate::provider::{ChatData, ChatHistoryItem, Provider};
 
 mod event_handler;
 
 #[derive(Debug)]
 pub struct App<'a, 't> {
     provider: &'a mut Provider,
+    last_added_index: Option<usize>,
     event_handler: event_handler::EventHandler,
     scrollview_state: ScrollViewState,
     textarea: TextArea<'t>,
@@ -53,6 +52,7 @@ impl<'a, 't> App<'a, 't> {
             selected_zone: SelectedZone::TextInput,
             scrollview_state: ScrollViewState::default(),
             generating: false,
+            last_added_index: None,
         }
     }
 
@@ -131,11 +131,18 @@ impl<'a, 't> App<'a, 't> {
                     self.handle_key_event(key_event)?;
                 }
             }
-            Event::LlmResponse(LlmResponse::Chunk(chunk)) => self
-                .provider
-                .add_chat_to_context(ChatHistoryItem::Chat(ChatData::user(chunk)))?,
+            Event::LlmResponse(LlmResponse::Chunk(chunk)) => {
+                if let Some(index) = self.last_added_index {
+                    self.provider.append_chat_in_context(index, &chunk)?;
+                } else {
+                    self.last_added_index = self
+                        .provider
+                        .add_chat_to_context(ChatHistoryItem::Chat(ChatData::model(chunk)))?;
+                }
+            }
             Event::LlmResponse(LlmResponse::Finished) => {
                 self.generating = false;
+                self.last_added_index = None;
             }
             _ => {}
         }
@@ -174,12 +181,16 @@ impl<'a, 't> App<'a, 't> {
     }
 
     fn submit_prompt(&mut self) -> anyhow::Result<()> {
-        self.event_handler
-            .send_llm_response(event_handler::LlmResponse::Chunk(
-                self.textarea.lines().join("\n"),
-            ))?;
+        let prompt = self.textarea.lines().join("\n");
+        self.provider
+            .add_chat_to_context(ChatHistoryItem::Chat(ChatData::user(prompt.clone())))?;
         self.textarea = TextArea::default();
         self.generating = true;
+        tokio::spawn(handle_llm_stream(
+            self.event_handler.tx.clone(),
+            self.provider.clone(),
+            prompt,
+        ));
         Ok(())
     }
 
@@ -271,11 +282,39 @@ impl<'a, 't> App<'a, 't> {
         match chat {
             ChatHistoryItem::Chat(message) => {
                 let text = tui_markdown::from_str(&message.text);
-                Paragraph::new(text).block(block.title(message.role.display()))
+                Paragraph::new(text)
+                    .block(block.title(message.role.display()))
+                    .wrap(Wrap { trim: true })
             }
             ChatHistoryItem::FileUpload(file) => {
                 Paragraph::new(file.relative_filepath.clone()).block(block.title("File upload"))
             }
         }
     }
+}
+
+async fn handle_llm_stream(
+    tx: tokio::sync::mpsc::UnboundedSender<Event>,
+    mut provider: Provider,
+    prompt: String,
+) {
+    let mut stream = provider.complete_chat_stream(prompt).await.unwrap();
+    while let Some(response) = stream.next().await {
+        match response {
+            Ok(chunk) => {
+                if tx
+                    .send(Event::LlmResponse(LlmResponse::Chunk(chunk)))
+                    .is_err()
+                {
+                    break; // Exit if the receiver is closed
+                }
+            }
+            Err(e) => {
+                if tx.send(Event::Error).is_err() {
+                    break; // Exit if the receiver is closed
+                }
+            }
+        }
+    }
+    tx.send(Event::LlmResponse(LlmResponse::Finished));
 }
