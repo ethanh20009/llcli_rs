@@ -20,9 +20,12 @@ impl From<(KeyEvent, SelectedZone)> for Input {
 
         // Global
         let global = match (key_event.code, key_event.modifiers) {
-            (KeyCode::Esc, _) => Input::Quit,
-            (KeyCode::Char('k'), KeyModifiers::CONTROL) => Input::ChangeWindowUp,
-            (KeyCode::Char('j'), KeyModifiers::CONTROL) => Input::ChangeWindowDown,
+            (KeyCode::Esc, _) | (KeyCode::Char('c'), KeyModifiers::CONTROL) => Input::Quit,
+            (KeyCode::Char('k'), KeyModifiers::CONTROL) | (KeyCode::Up, KeyModifiers::CONTROL) => {
+                Input::ChangeWindowUp
+            }
+            (KeyCode::Char('j'), KeyModifiers::CONTROL)
+            | (KeyCode::Down, KeyModifiers::CONTROL) => Input::ChangeWindowDown,
             _ => Input::None,
         };
         if global != Input::None {
@@ -35,10 +38,10 @@ impl From<(KeyEvent, SelectedZone)> for Input {
             (KeyCode::Char('s'), KeyModifiers::CONTROL, SelectedZone::TextInput) => Input::Submit,
             (_, _, SelectedZone::TextInput) => Input::TextAreaInput(key_event),
 
-            (KeyCode::Char('k'), KeyModifiers::NONE, SelectedZone::ChatHistory) => Input::ScrollUp,
-            (KeyCode::Char('j'), KeyModifiers::NONE, SelectedZone::ChatHistory) => {
-                Input::ScrollDown
-            }
+            (KeyCode::Char('k'), KeyModifiers::NONE, SelectedZone::ChatHistory)
+            | (KeyCode::Up, KeyModifiers::NONE, SelectedZone::ChatHistory) => Input::ScrollUp,
+            (KeyCode::Char('j'), KeyModifiers::NONE, SelectedZone::ChatHistory)
+            | (KeyCode::Down, KeyModifiers::NONE, SelectedZone::ChatHistory) => Input::ScrollDown,
             _ => Input::None,
         }
     }
