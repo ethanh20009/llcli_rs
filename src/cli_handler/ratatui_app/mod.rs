@@ -1,5 +1,11 @@
+use anyhow::Context;
 use futures_util::StreamExt;
-use ratatui::{layout::Margin, prelude::StatefulWidget, widgets::Wrap};
+use ratatui::{
+    layout::Margin,
+    prelude::StatefulWidget,
+    style::{Color, Modifier},
+    widgets::Wrap,
+};
 
 use crossterm::event::{KeyCode, KeyModifiers};
 use event_handler::{Event, EventHandler, LlmResponse};
@@ -15,7 +21,7 @@ use ratatui::{
 use tui_scrollview::ScrollViewState;
 use tui_textarea::TextArea;
 
-use crate::provider::{ChatData, ChatHistoryItem, Provider};
+use crate::provider::{ChatData, ChatHistoryItem, ChatRole, Provider};
 
 mod event_handler;
 
@@ -92,7 +98,9 @@ impl<'a, 't> App<'a, 't> {
         let buf = frame.buffer_mut();
 
         let scrollview_selected = self.selected_zone == SelectedZone::ChatHistory;
-        Self::build_block(scrollview_selected).render(layout[0], buf);
+        Self::build_block(scrollview_selected)
+            .title("History")
+            .render(layout[0], buf);
         scrollview.render(scrollview_area, buf, &mut self.scrollview_state);
 
         self.draw_text_area_widget(frame, layout[1]);
@@ -150,6 +158,13 @@ impl<'a, 't> App<'a, 't> {
                 self.generating = false;
                 self.last_added_index = None;
             }
+            Event::Error(err) => {
+                if err.root_cause().is::<std::io::Error>() {
+                    return Err(err).context("Critical Event Handling Error. Exiting as keyboard inputs could fail to exit program.");
+                }
+                self.generating = false;
+                self.last_added_index = None;
+            }
             _ => {}
         }
         Ok(())
@@ -193,7 +208,7 @@ impl<'a, 't> App<'a, 't> {
         self.textarea = TextArea::default();
         self.generating = true;
         tokio::spawn(handle_llm_stream(
-            self.event_handler.tx.clone(),
+            self.event_handler.get_sender(),
             self.provider.clone(),
             prompt,
         ));
@@ -288,8 +303,17 @@ impl<'a, 't> App<'a, 't> {
         match chat {
             ChatHistoryItem::Chat(message) => {
                 let text = tui_markdown::from_str(&message.text);
+                let title_color = if message.role == ChatRole::User {
+                    Color::Gray
+                } else {
+                    Color::Blue
+                };
                 Paragraph::new(text)
-                    .block(block.title(message.role.display()))
+                    .block(
+                        block
+                            .title(message.role.display())
+                            .title_style(Style::new().fg(title_color).add_modifier(Modifier::BOLD)),
+                    )
                     .wrap(Wrap { trim: true })
             }
             ChatHistoryItem::FileUpload(file) => {
@@ -304,7 +328,15 @@ async fn handle_llm_stream(
     mut provider: Provider,
     prompt: String,
 ) {
-    let mut stream = provider.complete_chat_stream(prompt).await.unwrap();
+    let stream = provider.complete_chat_stream(prompt).await;
+    let mut stream = match stream {
+        Ok(stream) => stream,
+        Err(err) => {
+            let _ = tx.send(Event::Error(err));
+            return;
+        }
+    };
+
     while let Some(response) = stream.next().await {
         match response {
             Ok(chunk) => {
@@ -316,11 +348,14 @@ async fn handle_llm_stream(
                 }
             }
             Err(e) => {
-                if tx.send(Event::Error).is_err() {
+                if tx
+                    .send(Event::Error(anyhow::anyhow!("LLM Stream error. {}", e)))
+                    .is_err()
+                {
                     break; // Exit if the receiver is closed
                 }
             }
         }
     }
-    tx.send(Event::LlmResponse(LlmResponse::Finished));
+    let _ = tx.send(Event::LlmResponse(LlmResponse::Finished));
 }

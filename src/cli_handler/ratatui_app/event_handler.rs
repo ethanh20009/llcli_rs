@@ -1,20 +1,21 @@
-use anyhow::Context;
+use anyhow::{Context, anyhow};
 use futures_util::FutureExt;
 use futures_util::StreamExt;
+use tokio::sync::mpsc::UnboundedSender;
 use tokio::{sync::mpsc, task::JoinHandle};
 
 #[derive(Debug)]
 pub struct EventHandler {
-    pub tx: tokio::sync::mpsc::UnboundedSender<Event>,
-    pub rx: tokio::sync::mpsc::UnboundedReceiver<Event>,
-    pub task: Option<JoinHandle<()>>,
+    tx: tokio::sync::mpsc::UnboundedSender<Event>,
+    rx: tokio::sync::mpsc::UnboundedReceiver<Event>,
+    task: Option<JoinHandle<()>>,
 }
 
 pub enum Event {
     Tick,
     Key(crossterm::event::KeyEvent),
     LlmResponse(LlmResponse),
-    Error,
+    Error(anyhow::Error),
 }
 
 pub enum LlmResponse {
@@ -48,8 +49,8 @@ impl EventHandler {
                           _ => {},
                         }
                       }
-                      Some(Err(_)) => {
-                        _tx.send(Event::Error).unwrap();
+                      Some(Err(err)) => {
+                        _tx.send(Event::Error(anyhow!("Error reading terminal event. {}", err))).unwrap();
                       }
                       None => {},
                     }
@@ -72,10 +73,7 @@ impl EventHandler {
         self.rx.recv().await.context("Unable to get event.")
     }
 
-    pub fn send_llm_response(&self, response: LlmResponse) -> anyhow::Result<()> {
-        self.tx
-            .send(Event::LlmResponse(response))
-            .context("Failed to send LLM response")?;
-        Ok(())
+    pub fn get_sender(&self) -> UnboundedSender<Event> {
+        self.tx.clone()
     }
 }
