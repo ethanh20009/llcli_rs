@@ -52,6 +52,8 @@ trait ProviderImpl: Clone {
     fn provider_str() -> &'static str;
 
     fn merge_tools(&mut self, tools: LLMTools);
+    fn flags_mut(&mut self) -> &mut LLMTools;
+    fn flags(&self) -> &LLMTools;
 
     fn update_memory(&mut self, prompt: String, response: String) -> anyhow::Result<()>;
     fn add_chat_to_context(&mut self, chat: ChatHistoryItem) -> anyhow::Result<Option<usize>>;
@@ -159,6 +161,18 @@ impl Provider {
         }
     }
 
+    pub fn flags_mut(&mut self) -> &mut LLMTools {
+        match self {
+            Self::Gemini(provider) => provider.flags_mut(),
+        }
+    }
+
+    pub fn flags(&self) -> &LLMTools {
+        match self {
+            Self::Gemini(provider) => provider.flags(),
+        }
+    }
+
     pub(crate) fn add_chat_to_context(
         &mut self,
         chat: ChatHistoryItem,
@@ -211,6 +225,10 @@ impl LLMTools {
         if tool_flags.search {
             self.search = true
         }
+    }
+
+    pub fn toggle_search(&mut self) {
+        self.search = !self.search
     }
 }
 

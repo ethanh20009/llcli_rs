@@ -2,7 +2,7 @@ use ratatui::{
     layout::Margin,
     prelude::StatefulWidget,
     style::{Color, Modifier},
-    widgets::Wrap,
+    widgets::{ListState, Wrap},
 };
 
 use event_handler::EventHandler;
@@ -23,6 +23,7 @@ use crate::provider::{ChatHistoryItem, ChatRole, Provider};
 mod event_handler;
 mod input;
 mod state_handling;
+mod tool_list_popover;
 
 #[derive(Debug)]
 pub struct App<'a, 't> {
@@ -33,6 +34,8 @@ pub struct App<'a, 't> {
     textarea: TextArea<'t>,
     exit: bool,
     selected_zone: SelectedZone,
+    popover: Option<Popover>,
+    llm_tool_options_state: ListState,
     generating: bool,
 }
 
@@ -40,6 +43,11 @@ pub struct App<'a, 't> {
 enum SelectedZone {
     ChatHistory,
     TextInput,
+}
+
+#[derive(Debug)]
+enum Popover {
+    LlmToolList,
 }
 
 impl<'a, 't> App<'a, 't> {
@@ -53,6 +61,8 @@ impl<'a, 't> App<'a, 't> {
             scrollview_state: ScrollViewState::default(),
             generating: false,
             last_added_index: None,
+            popover: None,
+            llm_tool_options_state: Default::default(),
         }
     }
 

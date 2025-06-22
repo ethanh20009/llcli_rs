@@ -8,9 +8,11 @@ pub enum Input {
     ScrollDown,
     ChangeWindowUp,
     ChangeWindowDown,
+    Back,
     Quit,
     Submit,
     TextAreaInput(KeyEvent),
+    OpenLlmOptions,
     None,
 }
 
@@ -20,12 +22,15 @@ impl From<(KeyEvent, SelectedZone)> for Input {
 
         // Global
         let global = match (key_event.code, key_event.modifiers) {
-            (KeyCode::Esc, _) | (KeyCode::Char('c'), KeyModifiers::CONTROL) => Input::Quit,
+            (KeyCode::Char('q'), KeyModifiers::CONTROL)
+            | (KeyCode::Char('c'), KeyModifiers::CONTROL) => Input::Quit,
             (KeyCode::Char('k'), KeyModifiers::CONTROL) | (KeyCode::Up, KeyModifiers::CONTROL) => {
                 Input::ChangeWindowUp
             }
             (KeyCode::Char('j'), KeyModifiers::CONTROL)
             | (KeyCode::Down, KeyModifiers::CONTROL) => Input::ChangeWindowDown,
+            (KeyCode::Char(' '), KeyModifiers::CONTROL) => Input::OpenLlmOptions,
+            (KeyCode::Esc, KeyModifiers::NONE) => Input::Back,
             _ => Input::None,
         };
         if global != Input::None {

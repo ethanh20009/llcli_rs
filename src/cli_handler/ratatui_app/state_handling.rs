@@ -6,7 +6,7 @@ use tui_textarea::TextArea;
 use crate::provider::{ChatData, ChatHistoryItem, Provider};
 
 use super::{
-    App, SelectedZone,
+    App, Popover, SelectedZone,
     event_handler::{Event, LlmResponse},
     input::Input,
 };
@@ -70,6 +70,12 @@ impl<'a, 't> App<'a, 't> {
                 if !self.generating {
                     self.textarea.input(key_event);
                 }
+            }
+            Input::Back => {
+                self.popover = None;
+            }
+            Input::OpenLlmOptions => {
+                self.popover = Some(Popover::LlmToolList);
             }
             Input::None => {}
         };

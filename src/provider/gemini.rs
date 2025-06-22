@@ -31,6 +31,14 @@ impl ProviderImpl for GeminiProvider {
         self.gemini_tools.merge(&tools);
     }
 
+    fn flags_mut(&mut self) -> &mut LLMTools {
+        &mut self.gemini_tools
+    }
+
+    fn flags(&self) -> &LLMTools {
+        &self.gemini_tools
+    }
+
     fn update_memory(&mut self, prompt: String, response: String) -> anyhow::Result<()> {
         self.memory.extend(vec![
             ChatData {
