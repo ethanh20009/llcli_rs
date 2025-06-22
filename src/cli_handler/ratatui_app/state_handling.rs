@@ -8,6 +8,7 @@ use crate::provider::{ChatData, ChatHistoryItem, Provider};
 use super::{
     App, SelectedZone,
     event_handler::{Event, LlmResponse},
+    input::Input,
 };
 
 enum WindowDirection {
@@ -50,31 +51,27 @@ impl<'a, 't> App<'a, 't> {
 
     fn handle_key_event(&mut self, key_event: crossterm::event::KeyEvent) -> anyhow::Result<()> {
         // Global
-        match (key_event.code, key_event.modifiers, self.selected_zone) {
-            (KeyCode::Esc, _, _) => self.exit(),
-            (KeyCode::Char('k'), KeyModifiers::CONTROL, _) => {
-                self.change_window(WindowDirection::Up)
-            }
-            (KeyCode::Char('j'), KeyModifiers::CONTROL, _) => {
-                self.change_window(WindowDirection::Down)
-            }
-
-            (KeyCode::Char('j'), _, SelectedZone::ChatHistory) => {
-                self.scroll_chat_history(WindowDirection::Down);
-            }
-            (KeyCode::Char('k'), _, SelectedZone::ChatHistory) => {
+        let input = Input::from((key_event, self.selected_zone));
+        match input {
+            Input::Quit => self.exit(),
+            Input::ChangeWindowUp => self.change_window(WindowDirection::Up),
+            Input::ChangeWindowDown => self.change_window(WindowDirection::Down),
+            Input::ScrollUp => {
                 self.scroll_chat_history(WindowDirection::Up);
             }
-            (KeyCode::Char('s'), KeyModifiers::CONTROL, SelectedZone::TextInput) => {
+            Input::ScrollDown => {
+                self.scroll_chat_history(WindowDirection::Down);
+            }
+            Input::Submit => {
                 self.submit_prompt()?;
             }
 
-            (_, _, SelectedZone::TextInput) => {
+            Input::TextAreaInput(key_event) => {
                 if !self.generating {
                     self.textarea.input(key_event);
                 }
             }
-            _ => {}
+            Input::None => {}
         };
         Ok(())
     }

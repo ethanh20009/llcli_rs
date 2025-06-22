@@ -21,6 +21,7 @@ use tui_textarea::TextArea;
 use crate::provider::{ChatHistoryItem, ChatRole, Provider};
 
 mod event_handler;
+mod input;
 mod state_handling;
 
 #[derive(Debug)]
@@ -63,7 +64,6 @@ impl<'a, 't> App<'a, 't> {
 
         let mut textarea = TextArea::default();
         textarea.set_block(block);
-
         textarea
     }
 
