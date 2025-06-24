@@ -78,7 +78,7 @@ impl<'a, 't> App<'a, 't> {
             if handled {
                 return Ok(());
             }
-            let handled = match popover {
+            match popover {
                 Popover::LlmToolList => match input {
                     Input::ScrollUp => {
                         self.llm_tool_options_state.select_previous();
@@ -100,9 +100,7 @@ impl<'a, 't> App<'a, 't> {
                     _ => false,
                 },
             };
-            if handled {
-                return Ok(());
-            }
+            return Ok(());
         }
 
         // Normal global keybinds

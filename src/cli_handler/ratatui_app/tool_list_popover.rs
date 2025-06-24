@@ -5,7 +5,9 @@ use ratatui::{
     style::{Color, Modifier, Style, Stylize, palette::tailwind::SLATE},
     symbols,
     text::Line,
-    widgets::{Block, Borders, HighlightSpacing, List, ListItem, Paragraph, StatefulWidget},
+    widgets::{
+        Block, Borders, Clear, HighlightSpacing, List, ListItem, Paragraph, StatefulWidget, Widget,
+    },
 };
 use strum::IntoEnumIterator;
 use tui_popup::{Popup, SizedWrapper};
@@ -61,11 +63,8 @@ impl<'a> From<LlmToolItem<'a>> for ListItem<'a> {
 impl<'a, 't> App<'a, 't> {
     pub(super) fn llm_options_popup(&mut self, area: Rect, frame: &mut Frame) {
         let popover_rect = area.inner(Margin::new(5, 5));
-
-        let block = Block::new()
-            .title(Line::raw("LLM Options").centered())
-            .borders(Borders::TOP)
-            .border_set(symbols::border::EMPTY);
+        frame.render_widget(Clear, popover_rect);
+        let block = Block::bordered().title("LLM Options");
 
         let item_enum = LlmToolEnum::iter().collect::<Vec<_>>();
         // Iterate through all elements in the `items` and stylize them.
