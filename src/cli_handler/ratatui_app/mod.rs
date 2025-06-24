@@ -2,6 +2,7 @@ use ratatui::{
     layout::Margin,
     prelude::StatefulWidget,
     style::{Color, Modifier},
+    text::Span,
     widgets::{ListState, Wrap},
 };
 
@@ -45,7 +46,7 @@ enum SelectedZone {
     TextInput,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 enum Popover {
     LlmToolList,
 }
@@ -62,7 +63,7 @@ impl<'a, 't> App<'a, 't> {
             generating: false,
             last_added_index: None,
             popover: None,
-            llm_tool_options_state: Default::default(),
+            llm_tool_options_state: ListState::default().with_selected(Some(0)),
         }
     }
 
@@ -100,13 +101,29 @@ impl<'a, 't> App<'a, 't> {
 
         let buf = frame.buffer_mut();
 
+        let instructions = Line::from(vec![
+            Span::from(" Quit "),
+            Span::from("<Ctrl-c>").fg(Color::Blue),
+            Span::from(" Scroll Up "),
+            Span::from("<Up Arrow>").fg(Color::Blue),
+            Span::from(" Scroll Down "),
+            Span::from("<Down Arrow>").fg(Color::Blue),
+        ]);
+
         let scrollview_selected = self.selected_zone == SelectedZone::ChatHistory;
         Self::build_block(scrollview_selected)
             .title("History")
+            .title_bottom(instructions)
             .render(layout[0], buf);
         scrollview.render(scrollview_area, buf, &mut self.scrollview_state);
 
-        self.draw_text_area_widget(frame, layout[1]);
+        self.draw_text_area_widget(buf, layout[1]);
+
+        if let Some(popover) = self.popover {
+            match popover {
+                Popover::LlmToolList => self.llm_options_popup(area, frame),
+            }
+        }
     }
 
     fn count_total_height(&self, term_width: u16) -> u16 {
@@ -143,14 +160,14 @@ impl<'a, 't> App<'a, 't> {
 }
 
 impl<'a, 't> App<'a, 't> {
-    fn draw_text_area_widget(&mut self, frame: &mut Frame, area: Rect) {
+    fn draw_text_area_widget(&mut self, buf: &mut Buffer, area: Rect) {
         let instructions = Line::from(vec![" Submit ".into(), "<C-S>".blue().bold()]);
         self.textarea.set_block(
             Self::build_block(self.selected_zone == SelectedZone::TextInput)
                 .title("Prompt")
                 .title_bottom(instructions),
         );
-        self.textarea.render(area, frame.buffer_mut());
+        self.textarea.render(area, buf);
     }
 
     fn build_block(selected: bool) -> Block<'t> {

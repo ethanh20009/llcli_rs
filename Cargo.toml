@@ -28,6 +28,11 @@ tui-textarea = { version = "0.7.0" }
 futures-util = { version = "0.3.31" }
 tui-scrollview = { version = "0.5.1" }
 tui-markdown = { version = "0.3.5" }
+tui-popup = { version = "0.6.0" }
 eventsource-stream = { version = "0.2.3" }
+tracing = { version = "0.1.41", features = ["async-await"] }
+tracing-subscriber = { version = "0.3.19", features = ["json"] }
+tracing-appender = "0.2.2"
+strum = { version = "0.27.1", features = ["derive"] }
 [profile.release]
 strip = "debuginfo"

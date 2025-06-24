@@ -11,6 +11,7 @@ pub struct EventHandler {
     task: Option<JoinHandle<()>>,
 }
 
+#[derive(Debug)]
 pub enum Event {
     Tick,
     Key(crossterm::event::KeyEvent),
@@ -18,6 +19,7 @@ pub enum Event {
     Error(anyhow::Error),
 }
 
+#[derive(Debug)]
 pub enum LlmResponse {
     Finished,
     Chunk(String),

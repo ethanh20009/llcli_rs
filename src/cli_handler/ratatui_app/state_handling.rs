@@ -1,9 +1,13 @@
 use anyhow::Context;
 use crossterm::event::{KeyCode, KeyModifiers};
 use futures_util::StreamExt;
+use tracing::trace;
 use tui_textarea::TextArea;
 
-use crate::provider::{ChatData, ChatHistoryItem, Provider};
+use crate::{
+    cli_handler::ratatui_app::tool_list_popover::LlmToolEnum,
+    provider::{ChatData, ChatHistoryItem, Provider},
+};
 
 use super::{
     App, Popover, SelectedZone,
@@ -20,11 +24,13 @@ impl<'a, 't> App<'a, 't> {
     pub(super) fn handle_event(&mut self, event: Event) -> anyhow::Result<()> {
         match event {
             Event::Key(key_event) => {
+                tracing::trace!("Handling Key Event: {:?}", key_event);
                 if key_event.kind == crossterm::event::KeyEventKind::Press {
                     self.handle_key_event(key_event)?;
                 }
             }
             Event::LlmResponse(LlmResponse::Chunk(chunk)) => {
+                tracing::trace!("Handling LLM Response Chunk: {:?}", chunk);
                 if let Some(index) = self.last_added_index {
                     self.provider.append_chat_in_context(index, &chunk)?;
                 } else {
@@ -34,10 +40,12 @@ impl<'a, 't> App<'a, 't> {
                 }
             }
             Event::LlmResponse(LlmResponse::Finished) => {
+                tracing::trace!("Handling LLM Response Finished");
                 self.generating = false;
                 self.last_added_index = None;
             }
             Event::Error(err) => {
+                tracing::error!("Error occurred: {:?}", err);
                 if err.root_cause().is::<std::io::Error>() {
                     return Err(err).context("Critical Event Handling Error. Exiting as keyboard inputs could fail to exit program.");
                 }
@@ -51,34 +59,101 @@ impl<'a, 't> App<'a, 't> {
 
     fn handle_key_event(&mut self, key_event: crossterm::event::KeyEvent) -> anyhow::Result<()> {
         // Global
-        let input = Input::from((key_event, self.selected_zone));
-        match input {
-            Input::Quit => self.exit(),
-            Input::ChangeWindowUp => self.change_window(WindowDirection::Up),
-            Input::ChangeWindowDown => self.change_window(WindowDirection::Down),
-            Input::ScrollUp => {
-                self.scroll_chat_history(WindowDirection::Up);
-            }
-            Input::ScrollDown => {
-                self.scroll_chat_history(WindowDirection::Down);
-            }
-            Input::Submit => {
-                self.submit_prompt()?;
-            }
+        let input = Input::from(key_event);
+        trace!("Decoded input: {:?}", input);
 
-            Input::TextAreaInput(key_event) => {
-                if !self.generating {
+        // Popover first.
+        if let Some(popover) = self.popover {
+            let handled = match input {
+                Input::Back => {
+                    self.popover = None;
+                    true
+                }
+                Input::Quit => {
+                    self.exit();
+                    true
+                }
+                _ => false,
+            };
+            if handled {
+                return Ok(());
+            }
+            let handled = match popover {
+                Popover::LlmToolList => match input {
+                    Input::ScrollUp => {
+                        self.llm_tool_options_state.select_previous();
+                        true
+                    }
+                    Input::ScrollDown => {
+                        self.llm_tool_options_state.select_next();
+                        true
+                    }
+                    Input::Toggle => {
+                        if let Some(selected) = self.llm_tool_options_state.selected() {
+                            self.provider.flags_mut().toggle(
+                                LlmToolEnum::from_repr(selected)
+                                    .context("Failed to get LLM Tool Setting from index.")?,
+                            );
+                        }
+                        true
+                    }
+                    _ => false,
+                },
+            };
+            if handled {
+                return Ok(());
+            }
+        }
+
+        // Normal global keybinds
+        let handled_global = match input {
+            Input::Quit => {
+                self.exit();
+                true
+            }
+            Input::ChangeWindowUp | Input::ChangeWindowDown => {
+                self.change_window(if input == Input::ChangeWindowUp {
+                    WindowDirection::Up
+                } else {
+                    WindowDirection::Down
+                });
+                true
+            }
+            Input::ToggleLlmOptions => {
+                if let Some(Popover::LlmToolList) = self.popover {
+                    self.popover = None
+                } else {
+                    self.popover = Some(Popover::LlmToolList);
+                }
+                true
+            }
+            _ => false,
+        };
+        if handled_global {
+            return Ok(());
+        }
+
+        match self.selected_zone {
+            SelectedZone::TextInput => match input {
+                Input::Submit => {
+                    self.submit_prompt()?;
+                }
+                _ => {
                     self.textarea.input(key_event);
                 }
-            }
-            Input::Back => {
-                self.popover = None;
-            }
-            Input::OpenLlmOptions => {
-                self.popover = Some(Popover::LlmToolList);
-            }
-            Input::None => {}
-        };
+            },
+            SelectedZone::ChatHistory => match input {
+                Input::ScrollUp => self.scroll_chat_history(WindowDirection::Up),
+                Input::ScrollDown => self.scroll_chat_history(WindowDirection::Down),
+                Input::Submit => {
+                    if !self.generating {
+                        self.submit_prompt()?;
+                    }
+                }
+                _ => {}
+            },
+        }
+
         Ok(())
     }
 

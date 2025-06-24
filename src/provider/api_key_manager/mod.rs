@@ -1,5 +1,8 @@
+use tracing::instrument;
+
 use super::{Error, Result};
 
+#[derive(Debug)]
 pub struct APIKeyManager {
     user_name: String,
 }
@@ -7,6 +10,7 @@ pub struct APIKeyManager {
 const SERVICE_NAME: &'static str = "llmcli_rs";
 
 impl APIKeyManager {
+    #[instrument(ret)]
     pub fn new() -> Self {
         Self {
             user_name: whoami::username(),
