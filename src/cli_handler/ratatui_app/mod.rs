@@ -85,7 +85,7 @@ impl<'a, 't> App<'a, 't> {
 
     fn draw(&mut self, frame: &mut Frame) {
         let area = frame.area();
-        let layout = Layout::vertical([Constraint::Fill(1), Constraint::Length(5)]).split(area);
+        let layout = Layout::vertical([Constraint::Fill(1), Constraint::Length(3)]).split(area);
 
         let scrollview_area = layout[0].inner(Margin::new(1, 1));
         let mut scrollview = tui_scrollview::ScrollView::new(Size::new(
@@ -161,9 +161,13 @@ impl<'a, 't> App<'a, 't> {
         self.textarea.set_block(
             Self::build_block(self.selected_zone == SelectedZone::TextInput)
                 .title("Prompt")
+                .padding(Padding::new(2, 0, 0, 0))
                 .title_bottom(instructions),
         );
         self.textarea.render(area, buf);
+        Span::from(">")
+            .style(Style::default().fg(Color::Green))
+            .render(area.inner(Margin::new(1, 1)), buf);
     }
 
     fn build_block(selected: bool) -> Block<'t> {
