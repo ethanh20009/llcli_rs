@@ -68,13 +68,7 @@ impl<'a, 't> App<'a, 't> {
     }
 
     fn create_chat_input() -> TextArea<'t> {
-        let title = Line::from("Chat Input".bold());
-        let block = Block::bordered()
-            .title(title.centered())
-            .border_set(border::THICK);
-
-        let mut textarea = TextArea::default();
-        textarea.set_block(block);
+        let textarea = TextArea::default();
         textarea
     }
 
@@ -89,7 +83,7 @@ impl<'a, 't> App<'a, 't> {
 
     fn draw(&mut self, frame: &mut Frame) {
         let area = frame.area();
-        let layout = Layout::vertical(Constraint::from_ratios([(3, 4), (1, 4)])).split(area);
+        let layout = Layout::vertical([Constraint::Fill(1), Constraint::Length(5)]).split(area);
 
         let scrollview_area = layout[0].inner(Margin::new(1, 1));
         let mut scrollview = tui_scrollview::ScrollView::new(Size::new(

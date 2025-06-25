@@ -105,6 +105,15 @@ pub enum Commands {
     SetApiKey(SetApiKeyCommand),
 }
 
+impl Default for Commands {
+    fn default() -> Self {
+        Self::Chat(ChatCommand {
+            message: None,
+            search: false,
+        })
+    }
+}
+
 impl Cli {
     pub async fn handle_command(
         self,
@@ -121,7 +130,7 @@ impl Cli {
         let command = match self.command {
             Some(command) => Some(command),
             None => match &cli_handler {
-                Some(handler) => Some(handler.get_command().context("Failed to get command.")?),
+                Some(_handler) => Some(Commands::default()),
                 None => None,
             },
         }
