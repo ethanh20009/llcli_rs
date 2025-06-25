@@ -164,6 +164,8 @@ impl<'a, 't> App<'a, 't> {
                 .padding(Padding::new(2, 0, 0, 0))
                 .title_bottom(instructions),
         );
+        self.textarea
+            .set_placeholder_text("Enter prompt or @path-to-file");
         self.textarea.render(area, buf);
         Span::from(">")
             .style(Style::default().fg(Color::Green))
