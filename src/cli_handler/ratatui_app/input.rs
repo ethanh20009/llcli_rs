@@ -11,7 +11,7 @@ pub enum Input {
     Back,
     Quit,
     Submit,
-    Toggle,
+    Enter,
     ToggleLlmOptions,
     None,
 }
@@ -31,7 +31,7 @@ impl From<(KeyEvent)> for Input {
             (KeyCode::Down, KeyModifiers::NONE) => Input::ScrollDown,
             (KeyCode::Char('k'), KeyModifiers::NONE) => Input::ScrollUp,
             (KeyCode::Char('j'), KeyModifiers::NONE) => Input::ScrollDown,
-            (KeyCode::Enter, _) => Input::Toggle,
+            (KeyCode::Enter, KeyModifiers::NONE) => Input::Enter,
             (KeyCode::Char('s'), KeyModifiers::CONTROL) => Input::Submit,
             (KeyCode::Tab, KeyModifiers::NONE) => Input::ToggleLlmOptions,
             (KeyCode::Esc, _) => Input::Back,

@@ -38,6 +38,9 @@ impl<'a, 't> App<'a, 't> {
                         .provider
                         .add_chat_to_context(ChatHistoryItem::Chat(ChatData::model(chunk)))?;
                 }
+                if !self.scrolling_up {
+                    self.scrollview_state.scroll_to_bottom();
+                }
             }
             Event::LlmResponse(LlmResponse::Finished) => {
                 tracing::trace!("Handling LLM Response Finished");
@@ -88,13 +91,18 @@ impl<'a, 't> App<'a, 't> {
                         self.llm_tool_options_state.select_next();
                         true
                     }
-                    Input::Toggle => {
+                    Input::Enter => {
                         if let Some(selected) = self.llm_tool_options_state.selected() {
                             self.provider.flags_mut().toggle(
                                 LlmToolEnum::from_repr(selected)
                                     .context("Failed to get LLM Tool Setting from index.")?,
                             );
                         }
+                        true
+                    }
+
+                    Input::ToggleLlmOptions => {
+                        self.popover = None;
                         true
                     }
                     _ => false,
@@ -118,11 +126,7 @@ impl<'a, 't> App<'a, 't> {
                 true
             }
             Input::ToggleLlmOptions => {
-                if let Some(Popover::LlmToolList) = self.popover {
-                    self.popover = None
-                } else {
-                    self.popover = Some(Popover::LlmToolList);
-                }
+                self.popover = Some(Popover::LlmToolList);
                 true
             }
             _ => false,
@@ -133,7 +137,7 @@ impl<'a, 't> App<'a, 't> {
 
         match self.selected_zone {
             SelectedZone::TextInput => match input {
-                Input::Submit => {
+                Input::Submit | Input::Enter => {
                     self.submit_prompt()?;
                 }
                 _ => {
@@ -161,6 +165,7 @@ impl<'a, 't> App<'a, 't> {
             .add_chat_to_context(ChatHistoryItem::Chat(ChatData::user(prompt.clone())))?;
         self.textarea = TextArea::default();
         self.generating = true;
+        self.scrolling_up = false;
         tokio::spawn(handle_llm_stream(
             self.event_handler.get_sender(),
             self.provider.clone(),
@@ -172,6 +177,7 @@ impl<'a, 't> App<'a, 't> {
     fn scroll_chat_history(&mut self, directon: WindowDirection) {
         match directon {
             WindowDirection::Up => {
+                self.scrolling_up = true;
                 self.scrollview_state.scroll_up();
             }
             WindowDirection::Down => {

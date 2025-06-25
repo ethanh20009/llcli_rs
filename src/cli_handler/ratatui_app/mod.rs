@@ -38,6 +38,7 @@ pub struct App<'a, 't> {
     popover: Option<Popover>,
     llm_tool_options_state: ListState,
     generating: bool,
+    scrolling_up: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -64,6 +65,7 @@ impl<'a, 't> App<'a, 't> {
             last_added_index: None,
             popover: None,
             llm_tool_options_state: ListState::default().with_selected(Some(0)),
+            scrolling_up: false,
         }
     }
 
