@@ -85,7 +85,7 @@ impl<'a, 't> App<'a, 't> {
 
     fn draw(&mut self, frame: &mut Frame) {
         let area = frame.area();
-        let layout = Layout::vertical([Constraint::Fill(1), Constraint::Length(3)]).split(area);
+        let layout = Layout::vertical([Constraint::Fill(1), Constraint::Length(4)]).split(area);
 
         let scrollview_area = layout[0].inner(Margin::new(1, 1));
         let mut scrollview = tui_scrollview::ScrollView::new(Size::new(

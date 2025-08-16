@@ -178,7 +178,6 @@ impl<'a, 't> App<'a, 't> {
         match directon {
             WindowDirection::Up => {
                 self.scrolling_up = true;
-                self.scrollview_state.scroll_up();
             }
             WindowDirection::Down => {
                 self.scrollview_state.scroll_down();
