@@ -3,7 +3,7 @@ use std::{env::current_dir, path::PathBuf};
 use anyhow::Context;
 use inquire::Autocomplete;
 
-use crate::provider::Chat;
+use crate::provider::{ChatHistoryItem, FileUploadData};
 
 pub const FILE_INPUT_TRIGGER: &'static str = "#file:";
 
@@ -19,20 +19,13 @@ impl FileInputHandler {
         })
     }
 
-    pub fn chat_from_file(&self, path: &str) -> anyhow::Result<Chat> {
+    pub fn chat_from_file(&self, path: &str) -> anyhow::Result<ChatHistoryItem> {
         let contents = std::fs::read_to_string(path).context("Failed to read file contents.")?;
-        Ok(Chat {
-            role: crate::provider::ChatRole::User,
-            text: format!(
-                r#"
-I have given you the contents of a file for reference.
-File: #{}
-```
-{}
-```"#,
-                path, contents
-            ),
-        })
+        Ok(FileUploadData {
+            text: contents,
+            relative_filepath: path.to_owned(),
+        }
+        .into())
     }
 }
 

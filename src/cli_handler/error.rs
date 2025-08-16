@@ -12,6 +12,8 @@ pub enum Error {
     CommandNotOption(String),
     #[error("File Handler error. {0}")]
     FileHandlerError(#[from] anyhow::Error),
+    #[error("LLM Stream error. {0}")]
+    LLMError(anyhow::Error),
 }
 
 pub fn map_inquire_error(err: InquireError) -> Error {

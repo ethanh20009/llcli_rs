@@ -1,5 +1,6 @@
 use config;
 use serde::{Deserialize, Serialize};
+use tracing::{instrument, trace};
 
 const DEFAULT_CONFIG: &str = include_str!("default_config.toml");
 
@@ -31,7 +32,9 @@ pub struct ConfigManager {
 }
 
 impl ConfigManager {
+    #[instrument]
     pub fn new() -> ConfigManager {
+        trace!("Initialising Config.");
         let config_dir = dirs::config_dir().expect("Failed to retrieve config dir path.");
         let settings_path = config_dir.join("llcli.toml");
         let settings = config::Config::builder()
@@ -51,6 +54,8 @@ impl ConfigManager {
             .expect("Failed to build config")
             .try_deserialize::<Configuration>()
             .expect("Failed to deserialise config file");
+
+        trace!("Config Initialisation successful");
         Self { config: settings }
     }
 }
